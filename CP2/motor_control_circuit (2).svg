@@ -1,0 +1,291 @@
+<svg viewBox="0 0 1400 1000" xmlns="http://www.w3.org/2000/svg">
+  <!-- Define styles -->
+  <defs>
+    <style>
+      .wire { stroke: #333; stroke-width: 2; fill: none; }
+      .power-wire { stroke: #d32f2f; stroke-width: 2; fill: none; }
+      .ground-wire { stroke: #1976d2; stroke-width: 2; fill: none; }
+      .signal-wire { stroke: #388e3c; stroke-width: 2; fill: none; }
+      .component { fill: #f5f5f5; stroke: #333; stroke-width: 2; }
+      .label { font-family: Arial, sans-serif; font-size: 12px; fill: #333; }
+      .pin-label { font-family: Arial, sans-serif; font-size: 10px; fill: #666; }
+      .title { font-family: Arial, sans-serif; font-size: 14px; font-weight: bold; fill: #333; }
+    </style>
+  </defs>
+
+  <!-- Title -->
+  <text x="700" y="25" class="title" text-anchor="middle">Raspberry Pi Motor Control Circuit with IR Sensor</text>
+
+  <!-- Power Supply (12V) -->
+  <rect x="50" y="50" width="80" height="60" class="component"/>
+  <text x="90" y="75" class="title" text-anchor="middle">12V PSU</text>
+  <text x="60" y="95" class="pin-label">+12V</text>
+  <text x="105" y="95" class="pin-label">GND</text>
+  <circle cx="65" cy="100" r="3" fill="#d32f2f"/>
+  <circle cx="115" cy="100" r="3" fill="#1976d2"/>
+
+  <!-- Power Rails -->
+  <rect x="200" y="50" width="20" height="600" fill="#ffebee" stroke="#d32f2f" stroke-width="2"/>
+  <text x="210" y="40" class="label" text-anchor="middle">+12V</text>
+  
+  <rect x="230" y="50" width="20" height="600" fill="#e3f2fd" stroke="#1976d2" stroke-width="2"/>
+  <text x="240" y="40" class="label" text-anchor="middle">GND</text>
+
+  <!-- Power connections to rails -->
+  <line x1="65" y1="100" x2="210" y2="100" class="power-wire"/>
+  <line x1="115" y1="100" x2="240" y2="100" class="ground-wire"/>
+
+  <!-- IRFZ34N MOSFET -->
+  <g id="mosfet">
+    <rect x="300" y="150" width="100" height="120" class="component"/>
+    <text x="350" y="175" class="title" text-anchor="middle">IRFZ34N</text>
+    <text x="350" y="190" class="title" text-anchor="middle">MOSFET</text>
+    <text x="310" y="215" class="pin-label">G (1)</text>
+    <text x="310" y="235" class="pin-label">D (2)</text>
+    <text x="310" y="255" class="pin-label">S (3)</text>
+    <circle cx="300" cy="210" r="3" fill="#333"/>
+    <circle cx="300" cy="230" r="3" fill="#333"/>
+    <circle cx="300" cy="250" r="3" fill="#333"/>
+  </g>
+
+  <!-- 4N25 Optocoupler -->
+  <g id="optocoupler">
+    <rect x="450" y="150" width="100" height="140" class="component"/>
+    <text x="500" y="175" class="title" text-anchor="middle">4N25</text>
+    <text x="500" y="190" class="title" text-anchor="middle">Opto</text>
+    <text x="460" y="215" class="pin-label">1:A</text>
+    <text x="460" y="235" class="pin-label">2:K</text>
+    <text x="460" y="265" class="pin-label">4:E</text>
+    <text x="460" y="280" class="pin-label">5:C</text>
+    <circle cx="450" cy="210" r="3" fill="#333"/>
+    <circle cx="450" cy="230" r="3" fill="#333"/>
+    <circle cx="450" cy="260" r="3" fill="#333"/>
+    <circle cx="450" cy="275" r="3" fill="#333"/>
+  </g>
+
+  <!-- Resistors for MOSFET Gate -->
+  <g id="resistor-10k">
+    <rect x="280" y="100" width="60" height="20" rx="3" fill="#d4af37" stroke="#333" stroke-width="1"/>
+    <text x="310" y="113" class="pin-label" text-anchor="middle">10kΩ</text>
+    <circle cx="280" cy="110" r="3" fill="#333"/>
+    <circle cx="340" cy="110" r="3" fill="#333"/>
+  </g>
+
+  <g id="resistor-2k">
+    <rect x="280" y="280" width="60" height="20" rx="3" fill="#d4af37" stroke="#333" stroke-width="1"/>
+    <text x="310" y="293" class="pin-label" text-anchor="middle">2kΩ</text>
+    <circle cx="280" cy="290" r="3" fill="#333"/>
+    <circle cx="340" cy="290" r="3" fill="#333"/>
+  </g>
+
+  <!-- 10k pull-up: +12V to Gate -->
+  <line x1="210" y1="110" x2="280" y2="110" class="power-wire"/>
+  <line x1="340" y1="110" x2="360" y2="110" class="wire"/>
+  <line x1="360" y1="110" x2="360" y2="210" class="wire"/>
+  <line x1="360" y1="210" x2="300" y2="210" class="wire"/>
+
+  <!-- 2k pull-down: Gate to GND -->
+  <line x1="300" y1="210" x2="280" y2="210" class="wire"/>
+  <line x1="280" y1="210" x2="280" y2="290" class="wire"/>
+  <line x1="340" y1="290" x2="360" y2="290" class="wire"/>
+  <line x1="360" y1="290" x2="360" y2="350" class="wire"/>
+  <line x1="360" y1="350" x2="240" y2="350" class="ground-wire"/>
+
+  <!-- MOSFET Source to GND -->
+  <line x1="300" y1="250" x2="240" y2="250" class="ground-wire"/>
+
+  <!-- Optocoupler Collector to MOSFET Gate -->
+  <line x1="450" y1="275" x2="420" y2="275" class="signal-wire"/>
+  <line x1="420" y1="275" x2="420" y2="210" class="signal-wire"/>
+  <line x1="420" y1="210" x2="300" y2="210" class="signal-wire"/>
+
+  <!-- Optocoupler Emitter to GND -->
+  <line x1="450" y1="260" x2="240" y2="260" class="ground-wire"/>
+
+  <!-- Optocoupler Cathode to GND -->
+  <line x1="450" y1="230" x2="240" y2="230" class="ground-wire"/>
+
+  <!-- 1k Resistor for Optocoupler -->
+  <g id="resistor-1k">
+    <rect x="600" y="200" width="60" height="20" rx="3" fill="#d4af37" stroke="#333" stroke-width="1"/>
+    <text x="630" y="213" class="pin-label" text-anchor="middle">1kΩ</text>
+    <circle cx="600" cy="210" r="3" fill="#333"/>
+    <circle cx="660" cy="210" r="3" fill="#333"/>
+  </g>
+
+  <!-- Optocoupler Anode through 1k resistor -->
+  <line x1="450" y1="210" x2="600" y2="210" class="signal-wire"/>
+
+  <!-- L293D H-Bridge -->
+  <g id="l293d">
+    <rect x="700" y="350" width="140" height="280" class="component"/>
+    <text x="770" y="375" class="title" text-anchor="middle">L293D</text>
+    <text x="770" y="390" class="title" text-anchor="middle">H-Bridge</text>
+    
+    <!-- Left side pins -->
+    <text x="710" y="415" class="pin-label">1:EN1</text>
+    <text x="710" y="435" class="pin-label">2:IN1</text>
+    <text x="710" y="455" class="pin-label">3:OUT1</text>
+    <text x="710" y="475" class="pin-label">4:GND</text>
+    <text x="710" y="495" class="pin-label">5:GND</text>
+    <text x="710" y="515" class="pin-label">6:OUT2</text>
+    <text x="710" y="535" class="pin-label">7:IN2</text>
+    <text x="710" y="555" class="pin-label">8:VCC2</text>
+    
+    <!-- Right side pins -->
+    <text x="785" y="415" class="pin-label">16:VCC1</text>
+    <text x="785" y="515" class="pin-label">9:EN2</text>
+    <text x="785" y="535" class="pin-label">12:GND</text>
+    <text x="785" y="555" class="pin-label">13:GND</text>
+    
+    <circle cx="700" cy="410" r="3" fill="#333"/>
+    <circle cx="700" cy="430" r="3" fill="#333"/>
+    <circle cx="700" cy="450" r="3" fill="#333"/>
+    <circle cx="700" cy="470" r="3" fill="#333"/>
+    <circle cx="700" cy="490" r="3" fill="#333"/>
+    <circle cx="700" cy="510" r="3" fill="#333"/>
+    <circle cx="700" cy="530" r="3" fill="#333"/>
+    <circle cx="700" cy="550" r="3" fill="#333"/>
+    
+    <circle cx="840" cy="410" r="3" fill="#333"/>
+    <circle cx="840" cy="510" r="3" fill="#333"/>
+    <circle cx="840" cy="530" r="3" fill="#333"/>
+    <circle cx="840" cy="550" r="3" fill="#333"/>
+  </g>
+
+  <!-- L293D Pin 16 (VCC1) to +12V -->
+  <line x1="840" y1="410" x2="880" y2="410" class="power-wire"/>
+  <line x1="880" y1="410" x2="880" y2="120" class="power-wire"/>
+  <line x1="880" y1="120" x2="210" y2="120" class="power-wire"/>
+
+  <!-- L293D Pin 8 (VCC2) to MOSFET Drain -->
+  <line x1="700" y1="550" x2="380" y2="550" class="wire"/>
+  <line x1="380" y1="550" x2="380" y2="230" class="wire"/>
+  <line x1="380" y1="230" x2="300" y2="230" class="wire"/>
+
+  <!-- L293D Grounds (Pins 4, 5, 12, 13) -->
+  <line x1="700" y1="470" x2="240" y2="470" class="ground-wire"/>
+  <line x1="700" y1="490" x2="240" y2="490" class="ground-wire"/>
+  <line x1="840" y1="530" x2="900" y2="530" class="ground-wire"/>
+  <line x1="900" y1="530" x2="900" y2="580" class="ground-wire"/>
+  <line x1="900" y1="580" x2="240" y2="580" class="ground-wire"/>
+  <line x1="840" y1="550" x2="920" y2="550" class="ground-wire"/>
+  <line x1="920" y1="550" x2="920" y2="600" class="ground-wire"/>
+  <line x1="920" y1="600" x2="240" y2="600" class="ground-wire"/>
+
+  <!-- L293D Pin 9 (EN2) to +12V -->
+  <line x1="840" y1="510" x2="860" y2="510" class="power-wire"/>
+  <line x1="860" y1="510" x2="860" y2="130" class="power-wire"/>
+  <line x1="860" y1="130" x2="210" y2="130" class="power-wire"/>
+
+  <!-- Motor -->
+  <g id="motor">
+    <circle cx="650" cy="750" r="50" class="component"/>
+    <text x="650" y="750" class="title" text-anchor="middle">12V</text>
+    <text x="650" y="765" class="title" text-anchor="middle">Motor</text>
+    <circle cx="630" cy="720" r="3" fill="#333"/>
+    <circle cx="670" cy="720" r="3" fill="#333"/>
+  </g>
+
+  <!-- Motor connections to L293D OUT1 and OUT2 -->
+  <line x1="700" y1="450" x2="630" y2="450" class="wire"/>
+  <line x1="630" y1="450" x2="630" y2="720" class="wire"/>
+  <line x1="700" y1="510" x2="670" y2="510" class="wire"/>
+  <line x1="670" y1="510" x2="670" y2="720" class="wire"/>
+
+  <!-- Raspberry Pi -->
+  <g id="raspberry-pi">
+    <rect x="1000" y="150" width="180" height="320" class="component"/>
+    <text x="1090" y="175" class="title" text-anchor="middle">Raspberry Pi</text>
+    
+    <text x="1015" y="210" class="pin-label">GPIO17</text>
+    <text x="1015" y="240" class="pin-label">GPIO27</text>
+    <text x="1015" y="270" class="pin-label">GPIO22</text>
+    <text x="1015" y="300" class="pin-label">GPIO18</text>
+    <text x="1015" y="330" class="pin-label">GPIO23</text>
+    <text x="1015" y="370" class="pin-label">3.3V</text>
+    <text x="1015" y="410" class="pin-label">GND</text>
+    <text x="1015" y="450" class="pin-label">GND</text>
+    
+    <circle cx="1000" cy="205" r="3" fill="#333"/>
+    <circle cx="1000" cy="235" r="3" fill="#333"/>
+    <circle cx="1000" cy="265" r="3" fill="#333"/>
+    <circle cx="1000" cy="295" r="3" fill="#333"/>
+    <circle cx="1000" cy="325" r="3" fill="#333"/>
+    <circle cx="1000" cy="365" r="3" fill="#333"/>
+    <circle cx="1000" cy="405" r="3" fill="#333"/>
+    <circle cx="1000" cy="445" r="3" fill="#333"/>
+  </g>
+
+  <!-- GPIO17 to Optocoupler (Master Start/Stop) -->
+  <line x1="1000" y1="205" x2="660" y2="205" class="signal-wire"/>
+  <line x1="660" y1="205" x2="660" y2="210" class="signal-wire"/>
+
+  <!-- GPIO27 to L293D Pin 2 (IN1) -->
+  <line x1="1000" y1="235" x2="950" y2="235" class="signal-wire"/>
+  <line x1="950" y1="235" x2="950" y2="430" class="signal-wire"/>
+  <line x1="950" y1="430" x2="700" y2="430" class="signal-wire"/>
+
+  <!-- GPIO22 to L293D Pin 7 (IN2) -->
+  <line x1="1000" y1="265" x2="970" y2="265" class="signal-wire"/>
+  <line x1="970" y1="265" x2="970" y2="530" class="signal-wire"/>
+  <line x1="970" y1="530" x2="700" y2="530" class="signal-wire"/>
+
+  <!-- GPIO18 (PWM) to L293D Pin 1 (EN1) -->
+  <line x1="1000" y1="295" x2="990" y2="295" class="signal-wire"/>
+  <line x1="990" y1="295" x2="990" y2="410" class="signal-wire"/>
+  <line x1="990" y1="410" x2="700" y2="410" class="signal-wire"/>
+
+  <!-- Pi GND to common ground -->
+  <line x1="1000" y1="405" x2="940" y2="405" class="ground-wire"/>
+  <line x1="940" y1="405" x2="940" y2="620" class="ground-wire"/>
+  <line x1="940" y1="620" x2="240" y2="620" class="ground-wire"/>
+  
+  <line x1="1000" y1="445" x2="960" y2="445" class="ground-wire"/>
+  <line x1="960" y1="445" x2="960" y2="640" class="ground-wire"/>
+  <line x1="960" y1="640" x2="240" y2="640" class="ground-wire"/>
+
+  <!-- IR Sensor -->
+  <g id="ir-sensor">
+    <rect x="1100" y="700" width="100" height="80" class="component"/>
+    <text x="1150" y="725" class="title" text-anchor="middle">IR Sensor</text>
+    <text x="1115" y="750" class="pin-label">VCC</text>
+    <text x="1115" y="770" class="pin-label">GND</text>
+    <text x="1115" y="790" class="pin-label">OUT</text>
+    <circle cx="1100" cy="745" r="3" fill="#333"/>
+    <circle cx="1100" cy="765" r="3" fill="#333"/>
+    <circle cx="1100" cy="785" r="3" fill="#333"/>
+  </g>
+
+  <!-- IR Sensor VCC to Pi 3.3V -->
+  <line x1="1100" y1="745" x2="1050" y2="745" class="power-wire"/>
+  <line x1="1050" y1="745" x2="1050" y2="365" class="power-wire"/>
+  <line x1="1050" y1="365" x2="1000" y2="365" class="power-wire"/>
+
+  <!-- IR Sensor GND to Pi GND -->
+  <line x1="1100" y1="765" x2="1070" y2="765" class="ground-wire"/>
+  <line x1="1070" y1="765" x2="1070" y2="445" class="ground-wire"/>
+  <line x1="1070" y1="445" x2="1000" y2="445" class="ground-wire"/>
+
+  <!-- IR Sensor OUT to GPIO23 -->
+  <line x1="1100" y1="785" x2="1030" y2="785" class="signal-wire"/>
+  <line x1="1030" y1="785" x2="1030" y2="325" class="signal-wire"/>
+  <line x1="1030" y1="325" x2="1000" y2="325" class="signal-wire"/>
+
+  <!-- Legend -->
+  <g id="legend">
+    <text x="50" y="730" class="title">Legend:</text>
+    <line x1="50" y1="745" x2="100" y2="745" class="power-wire"/>
+    <text x="110" y="750" class="label">Power (+12V/3.3V)</text>
+    
+    <line x1="50" y1="765" x2="100" y2="765" class="ground-wire"/>
+    <text x="110" y="770" class="label">Ground</text>
+    
+    <line x1="50" y1="785" x2="100" y2="785" class="signal-wire"/>
+    <text x="110" y="790" class="label">Signal/Control</text>
+    
+    <line x1="50" y1="805" x2="100" y2="805" class="wire"/>
+    <text x="110" y="810" class="label">Motor Power Path</text>
+  </g>
+
+</svg>
