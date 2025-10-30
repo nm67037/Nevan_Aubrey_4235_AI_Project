@@ -30,6 +30,7 @@ import com.example.parmco_chat.ui.theme.PARMCO_chatTheme
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.isActive   // <-- important
 import java.io.IOException
 import java.util.UUID
 
@@ -57,36 +58,32 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-// ---------- UI ----------
 @Composable
 fun BluetoothScreen(modifier: Modifier = Modifier, client: BluetoothClient) {
     val context = LocalContext.current
 
-    // Permissions we care about at runtime
     val requiredPerms = remember {
         if (Build.VERSION.SDK_INT >= 31)
             arrayOf(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN)
         else
-            emptyArray() // connecting to a known MAC doesn't need runtime perms pre-31
+            emptyArray()
     }
 
-    // Launcher to request multiple runtime permissions
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { /* result map ignored for this simple demo */ }
+    ) { /* ignore results for demo */ }
 
     fun missingPerms(): Array<String> =
         requiredPerms.filter {
             ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED
         }.toTypedArray()
 
-    var mac by remember { mutableStateOf(TextFieldValue("AA:BB:CC:DD:EE:FF")) } // <-- put your Pi MAC here
+    var mac by remember { mutableStateOf(TextFieldValue("AA:BB:CC:DD:EE:FF")) } // set your Pi MAC
     var outgoing by remember { mutableStateOf(TextFieldValue("Hello from Android\n")) }
     val isConnected by client.isConnected.collectAsState()
     val logState = remember { mutableStateListOf<String>() }
     val scroll = rememberScrollState()
 
-    // Collect incoming data into log
     LaunchedEffect(Unit) {
         client.incoming.collectLatest { msg ->
             msg?.let { logState.add("Pi → $it") }
@@ -97,7 +94,6 @@ fun BluetoothScreen(modifier: Modifier = Modifier, client: BluetoothClient) {
         modifier = modifier.padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // connection indicator
         Box(
             Modifier
                 .size(24.dp)
@@ -167,13 +163,10 @@ fun BluetoothScreen(modifier: Modifier = Modifier, client: BluetoothClient) {
                 .verticalScroll(scroll)
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .padding(8.dp)
-        ) {
-            Text(logState.joinToString(separator = ""))
-        }
+        ) { Text(logState.joinToString(separator = "")) }
     }
 }
 
-// ---------- Bluetooth client ----------
 class BluetoothClient(private val adapter: android.bluetooth.BluetoothAdapter) {
     private var socket: BluetoothSocket? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -187,7 +180,7 @@ class BluetoothClient(private val adapter: android.bluetooth.BluetoothAdapter) {
 
     private suspend fun connect(mac: String) = withContext(Dispatchers.IO) {
         val device = adapter.getRemoteDevice(mac)
-        val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // SPP UUID
+        val uuid = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB") // SPP
         val sock = device.createRfcommSocketToServiceRecord(uuid)
         adapter.cancelDiscovery()
         try {
