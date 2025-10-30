@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This shape drawable defines our circle -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+
+    <!-- Sets the initial solid color of the circle -->
+    <solid
+        android:color="#E91E63" /> <!-- Initial color (e.g., Pink) -->
+
+</shape>
