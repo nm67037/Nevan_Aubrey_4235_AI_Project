@@ -4,10 +4,12 @@
  * Date: 11/12/2025
  *
  * FIX:
- * - Corrected typo uint3TICK_T to uint32_t
+ * - Changed RFCOMM channel from 1 to 22 to avoid conflicts.
  * - Added fcntl() to make the server_sock NON-BLOCKING.
- * - This allows the 'while(keep_running)' loop to be checked
- * and lets the service shut down gracefully (no more timeout).
+ * This fixes the "zombie" bug and allows the service to
+ * shut down gracefully.
+ * - Updated printf to report the correct channel.
+ * - Corrected uint3TICK_T typo to uint32_t.
  */
 
 #include <stdio.h>
@@ -29,7 +31,10 @@
 #define SPEED_PIN     18 
 #define SENSOR_PIN    23 
 
-#define PWM_FREQ 1000 
+#define PWM_FREQ 1000
+
+// --- THIS IS THE NEW CHANNEL ---
+#define RFCOMM_CHANNEL 22
 
 // --- Global Variables ---
 static volatile int keep_running = 1;     
@@ -38,7 +43,6 @@ static volatile int rpm = 0;
 static int speed_percent = 0;             
 static int pi;                            
 
-// *** THIS IS THE CORRECTED LINE ***
 void rpm_callback(int pi, unsigned gpio, unsigned level, uint32_t tick) {
     if (level == 1) {
         revolution_count++;
@@ -90,7 +94,7 @@ int main() {
 
     pi = pigpio_start(NULL, NULL); 
     if (pi < 0) {
-        fprintf(stderr, "pigpio initialisation failed!\n");
+        fprintf(stderr, "pigpio initialisation failed! (Could not connect to daemon)\n");
         return 1;
     }
 
@@ -119,7 +123,7 @@ int main() {
 
     loc_addr.rc_family = AF_BLUETOOTH;
     loc_addr.rc_bdaddr = *BDADDR_ANY;
-    loc_addr.rc_channel = (uint8_t) 1; 
+    loc_addr.rc_channel = (uint8_t) RFCOMM_CHANNEL; 
 
     if (bind(server_sock, (struct sockaddr *)&loc_addr, sizeof(loc_addr)) < 0) {
         perror("bind() failed");
@@ -134,15 +138,16 @@ int main() {
         pigpio_stop(pi);
         return 1;
     }
-    
+
+    // This fixes the "zombie" service bug
     fcntl(server_sock, F_SETFL, O_NONBLOCK);
 
-    printf("Bluetooth server started. Waiting for connection on channel 1...\n");
+    printf("Bluetooth server started. Waiting for connection on channel %d...\n", RFCOMM_CHANNEL);
 
     while (keep_running) {
         // --- Non-Blocking Accept ---
         client_sock = accept(server_sock, (struct sockaddr *)&rem_addr, &opt);
-        
+
         if (client_sock < 0) {
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
                 // No connection pending, just loop
@@ -156,7 +161,7 @@ int main() {
         // --- Connection Accepted ---
         ba2str(&rem_addr.rc_bdaddr, buf);
         fprintf(stdout, "Accepted connection from %s\n", buf);
-        
+
         fcntl(client_sock, F_SETFL, O_NONBLOCK);
 
         uint32_t last_rpm_calc_tick = get_current_tick(pi);
@@ -175,8 +180,8 @@ int main() {
                 snprintf(rpm_str, sizeof(rpm_str), "RPM:%d\n", rpm);
                 if (write(client_sock, rpm_str, strlen(rpm_str)) < 0) {
                     fprintf(stdout, "Client %s disconnected.\n", buf);
-                    close(client_sock); // Close client socket
-                    break; // Exit inner loop
+                    close(client_sock); 
+                    break; 
                 }
                 last_rpm_send_tick = current_tick;
             }
@@ -188,10 +193,10 @@ int main() {
                 }
             } else if (bytes_read == 0) {
                 fprintf(stdout, "Client %s disconnected (read 0).\n", buf);
-                close(client_sock); // Close client socket
-                break; // Exit inner loop
+                close(client_sock); 
+                break; 
             }
-            
+
             usleep(20000); 
         }
 
