@@ -47,17 +47,19 @@ class MainActivity : AppCompatActivity() {
     private lateinit var deviceListAdapter: ArrayAdapter<String>
 
     // --- Bluetooth Connection Variables ---
-    // We keep the UUID just as a fallback, but we'll try Channel 22 first
     private val MY_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
 
     private var connectedSocket: BluetoothSocket? = null
     private var outputStream: OutputStream? = null
-    private var inputStream: InputStream? = null // <-- NEW: For reading data
-    private var readDataThread: Thread? = null // <-- NEW: Thread to listen for data
+    private var inputStream: InputStream? = null
+    private var readDataThread: Thread? = null
     private var isClockwise = true
 
+    // --- NEW: Add a state variable to track if the motor should be running ---
+    private var isMotorStopped = true // Default to "stopped"
+
     // --- NEW: UI Elements ---
-    private lateinit var rpmTextView: TextView // <-- NEW
+    private lateinit var rpmTextView: TextView
 
     // --- NEW: Handler for UI Updates from background thread ---
     private val handler = object : Handler(Looper.getMainLooper()) {
@@ -84,10 +86,10 @@ class MainActivity : AppCompatActivity() {
         val startButton: Button = findViewById(R.id.startButton)
         val slowerButton: Button = findViewById(R.id.slowerButton)
         val fasterButton: Button = findViewById(R.id.fasterButton)
-        val stopButton: Button = findViewById(R.id.stopButton) // <-- This was already here, good.
+        val stopButton: Button = findViewById(R.id.stopButton)
         val toggleDirectionButton: Button = findViewById(R.id.toggleDirectionButton)
         val devicesListView: ListView = findViewById(R.id.devicesListView)
-        rpmTextView = findViewById(R.id.rpmTextView) // <-- NEW
+        rpmTextView = findViewById(R.id.rpmTextView)
 
         // 1. Initialize the list adapter
         deviceListAdapter = ArrayAdapter(this, android.R.layout.simple_list_item_1)
@@ -113,19 +115,38 @@ class MainActivity : AppCompatActivity() {
 
         // --- EDITED ---
         startButton.setOnClickListener {
-            // Send a sequence: Power ON, Direction CW, Speed 10%
+            // Send a sequence: Power ON, Direction CW, Speed 30%
             sendBluetoothCommand("s") // 's' for Start Master Power
             sendBluetoothCommand("c") // 'c' for Clockwise (default direction)
-            sendBluetoothCommand("f") // 'f' for Faster (sets speed to 10%)
-            Toast.makeText(this, "Start (s, c, f) sent", LENGTH_SHORT).show()
+            sendBluetoothCommand("f") // 'f' for Faster (10%)
+            sendBluetoothCommand("f") // 'f' for Faster (20%)
+            sendBluetoothCommand("f") // 'f' for Faster (30%)
+
+            // --- NEW: Update the app's state ---
+            isMotorStopped = false // Motor is now running
+            isClockwise = true     // Reset direction to CW on every start
+
+            Toast.makeText(this, "Start (s, c, f, f, f) sent", LENGTH_SHORT).show()
         }
 
         slowerButton.setOnClickListener {
+            // --- NEW: Check the state first ---
+            if (isMotorStopped) {
+                Toast.makeText(this, "Press START to begin", LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
             sendBluetoothCommand("d") // 'd' for Slower
             Toast.makeText(this, "Slower (d) sent", LENGTH_SHORT).show()
         }
 
         fasterButton.setOnClickListener {
+            // --- NEW: Check the state first ---
+            if (isMotorStopped) {
+                Toast.makeText(this, "Press START to begin", LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
             sendBluetoothCommand("f") // 'f' for Faster
             Toast.makeText(this, "Faster (f) sent", LENGTH_SHORT).show()
         }
@@ -133,10 +154,20 @@ class MainActivity : AppCompatActivity() {
         // --- EDITED ---
         stopButton.setOnClickListener {
             sendBluetoothCommand("x") // 'x' for Full Stop
+
+            // --- NEW: Update the app's state ---
+            isMotorStopped = true // Motor is now stopped
+
             Toast.makeText(this, "Stop (x) sent", LENGTH_SHORT).show()
         }
 
         toggleDirectionButton.setOnClickListener {
+            // --- NEW: Check the state first ---
+            if (isMotorStopped) {
+                Toast.makeText(this, "Press START to begin", LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
             isClockwise = !isClockwise
             val command: String
             val direction: String
@@ -169,9 +200,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(discoveryReceiver)
-        // --- NEW ---
-        // Stop the reading thread and close sockets
-        readDataThread?.interrupt() // Stop the listener thread
+        readDataThread?.interrupt()
         try {
             outputStream?.close()
             inputStream?.close()
@@ -184,7 +213,6 @@ class MainActivity : AppCompatActivity() {
     // --- Permission Handling ---
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            // Check if all permissions we asked for were granted
             val allGranted = permissions.values.all { it }
             if (allGranted) {
                 Toast.makeText(this, "Permissions Granted!", LENGTH_SHORT).show()
@@ -225,7 +253,6 @@ class MainActivity : AppCompatActivity() {
             deviceListAdapter.clear()
             discoveredDevices.clear()
 
-            // Check correct permission for scanning
             val hasScanPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
             } else {
@@ -255,11 +282,10 @@ class MainActivity : AppCompatActivity() {
                 val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                 if (device != null && device.name != null) {
 
-                    // Check correct permission for getting device info
                     val hasConnectPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
                     } else {
-                        true // No special permission needed on older versions
+                        true
                     }
 
                     if (hasConnectPermission) {
@@ -275,21 +301,12 @@ class MainActivity : AppCompatActivity() {
 
     // --- UPDATED AND NEW FUNCTIONS ---
 
-    /**
-     * This function sends the command string over Bluetooth.
-     * It runs on a background thread to avoid blocking the UI.
-     *
-     * --- EDITED ---
-     * Removed the "\n" as the C server processes one char at a time.
-     */
     private fun sendBluetoothCommand(command: String) {
         if (outputStream == null) {
             Toast.makeText(this, "Not connected to a device", LENGTH_SHORT).show()
             return
         }
 
-        // --- EDITED ---
-        // Send the raw command string. The C program is reading char by char.
         val commandToSend = command
 
         Thread {
@@ -304,37 +321,29 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    /**
-     * This function connects to the selected device.
-     * --- EDITED ---
-     * It now connects directly to RFCOMM Channel 22.
-     * It also starts the thread to read incoming RPM data.
-     */
     private fun connectToDevice(device: BluetoothDevice) {
         Thread {
             var socket: BluetoothSocket? = null
             try {
-                // --- THIS IS THE CRUCIAL CHANGE ---
-                // We are connecting directly to Channel 22
-                // This uses a "hidden" method, so we use reflection
+                // Connect directly to RFCOMM Channel 22
                 socket = device.javaClass
                     .getMethod("createRfcommSocket", Int::class.java)
                     .invoke(device, 22) as BluetoothSocket
 
                 socket.connect() // Blocking call
 
-                // If successful, store streams and start listener thread
                 connectedSocket = socket
                 outputStream = socket.outputStream
                 inputStream = socket.inputStream
 
-                // --- NEW ---
                 // Start the thread to listen for RPM data
                 readDataThread = Thread(this::readDataFromSocket)
                 readDataThread?.start()
 
                 runOnUiThread {
                     Toast.makeText(this, "Successfully connected to ${device.name}", LENGTH_LONG).show()
+                    // --- NEW: Set default state on connection ---
+                    isMotorStopped = true
                 }
 
             } catch (e: Exception) { // Catch general Exception for reflection
@@ -351,11 +360,6 @@ class MainActivity : AppCompatActivity() {
         }.start()
     }
 
-    /**
-     * --- NEW FUNCTION ---
-     * This function runs in a separate thread and continuously
-     * listens for incoming data (like "RPM:123") from the Pi.
-     */
     private fun readDataFromSocket() {
         // We use a BufferedReader to read line by line, since the C server sends a '\n'
         val reader = BufferedReader(InputStreamReader(inputStream!!))
