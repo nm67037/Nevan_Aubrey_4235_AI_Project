@@ -1,0 +1,15 @@
+[Unit]
+Description=PARMCO Bluetooth Motor Control Server
+Wants=pigpiod.service
+After=pigpiod.service bluetooth.service
+
+[Service]
+ExecStart=/home/group-1/Nevan_Aubrey_4235_AI_Project/CP3/parmco_server
+WorkingDirectory=/home/group-1/Nevan_Aubrey_4235_AI_Project/CP3
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=root
+
+[Install]
+WantedBy=multi-user.target
