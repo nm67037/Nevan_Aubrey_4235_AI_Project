@@ -1,10 +1,12 @@
 # PARMCO - Checkpoint 3: Headless Bluetooth Server
 
-This checkpoint transitions the project from a simple, keyboard-controlled C program to a fully "headless" Raspberry Pi server. The Pi now runs automatically on boot, waiting for a connection from the mobile app.
+This repository contains the AI-generated code and documentation for Checkpoint 3 of the PARMCO (Phone APP RP4 Motor Control) project.
+
+The goal of this checkpoint is to have a "headless" Raspberry Pi server that runs automatically on boot, waiting for a connection from the mobile app.
 
 This setup successfully passes the "forget and reconnect" test, even with difficult-to-pair devices like iPhones.
 
-## 📁 Core Components
+## 📁 Core Components (Raspberry Pi Server)
 
 * **`parmco_server.c` (C Program):** The main server that runs on the Pi. It initializes the `pigpio` pins, controls the motor, reads the RPM sensor, and manages the Bluetooth connection.
 * **`parmco.service` (`systemd` File):** A service file that automatically starts the `parmco_server` program on boot and ensures it runs as `root` (required for `pigpio`).
@@ -45,3 +47,32 @@ This setup is designed to solve several complex race conditions and caching issu
     * `'v'`: Counter-Clockwise
     * `'f'`: Faster
     * `'d'`: Slower
+
+---
+
+## 📱 Android App (Client)
+
+This section describes the main client-side code for the Android app.
+
+> //Nevan comment: This is the final working main app code from Gemini for CP2.
+
+### `MainActivity.kt` (Kotlin/Android)
+
+This file contains all the logic for the Android application. It handles the User Interface (UI), Bluetooth permissions, device scanning, and communication.
+
+**Key Functions:**
+
+* **UI and Permissions:**
+    * Handles all button clicks for "Scan," "Start," "Stop," "Faster," etc.
+    * Requests the necessary Bluetooth permissions (`BLUETOOTH_SCAN`, `BLUETOOTH_CONNECT`) from the user, handling both new (Android 12+) and old Android versions.
+* **Device Discovery:**
+    * Uses a `BroadcastReceiver` to scan for and display a list of nearby Bluetooth devices.
+* **Connection Logic (`connectToDevice`):**
+    * When a user taps a device from the list, this function attempts to connect.
+    * It **specifically targets RFCOMM Channel 22** using a special method (`createRfcommSocket`) to bypass standard UUID pairing, which is necessary to connect to our custom C server.
+* **Sending Data (`sendBluetoothCommand`):**
+    * Converts the single-character commands (like `'s'` or `'f'`) into bytes and sends them to the Pi over the Bluetooth socket's `outputStream`.
+* **Receiving Data (`readDataFromSocket`):**
+    * Runs a dedicated background thread to listen for data from the Pi.
+    * It uses a `BufferedReader` to read incoming data line-by-line (waiting for the `\n` sent by the C server).
+    * It sends the received string (e.g., `"RPM:4500"`) to the main UI thread using a `Handler`, which then updates the `rpmTextView` on the screen.
