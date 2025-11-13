@@ -39,6 +39,12 @@
         android:layout_height="wrap_content"
         android:text="Faster" />
 
+    <Button
+        android:id="@+id/stopButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Stop" />
+
 
     <ListView
         android:id="@+id/devicesListView"

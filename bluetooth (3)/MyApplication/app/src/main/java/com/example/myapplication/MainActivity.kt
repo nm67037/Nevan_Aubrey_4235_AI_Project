@@ -84,6 +84,7 @@ class MainActivity : AppCompatActivity() {
         val startButton: Button = findViewById(R.id.startButton)
         val slowerButton: Button = findViewById(R.id.slowerButton)
         val fasterButton: Button = findViewById(R.id.fasterButton)
+        val stopButton: Button = findViewById(R.id.stopButton)
         val toggleDirectionButton: Button = findViewById(R.id.toggleDirectionButton)
         val devicesListView: ListView = findViewById(R.id.devicesListView)
         rpmTextView = findViewById(R.id.rpmTextView) // <-- NEW
@@ -123,6 +124,11 @@ class MainActivity : AppCompatActivity() {
         fasterButton.setOnClickListener {
             sendBluetoothCommand("f") // 'f' for Faster
             Toast.makeText(this, "Faster (f) sent", LENGTH_SHORT).show()
+        }
+
+        stopButton.setOnClickListener {
+            sendBluetoothCommand("f") // 'f' for Faster
+            Toast.makeText(this, "Stop (x) sent", LENGTH_SHORT).show()
         }
 
         toggleDirectionButton.setOnClickListener {
