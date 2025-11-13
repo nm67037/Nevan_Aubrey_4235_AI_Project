@@ -47,4 +47,15 @@
         android:layout_weight="1"
         android:layout_marginTop="16dp" />
 
+    <!-- ADD THIS TO YOUR activity_main.xml -->
+    <TextView
+        android:id="@+id/rpmTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="RPM: 0"
+        android:textSize="24sp"
+        android:textAlignment="center"
+        android:padding="10dp"
+        android:textColor="#000000" />
+
 </LinearLayout>
