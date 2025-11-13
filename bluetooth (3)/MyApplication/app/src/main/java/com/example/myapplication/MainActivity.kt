@@ -84,7 +84,7 @@ class MainActivity : AppCompatActivity() {
         val startButton: Button = findViewById(R.id.startButton)
         val slowerButton: Button = findViewById(R.id.slowerButton)
         val fasterButton: Button = findViewById(R.id.fasterButton)
-        val stopButton: Button = findViewById(R.id.stopButton)
+        val stopButton: Button = findViewById(R.id.stopButton) // <-- This was already here, good.
         val toggleDirectionButton: Button = findViewById(R.id.toggleDirectionButton)
         val devicesListView: ListView = findViewById(R.id.devicesListView)
         rpmTextView = findViewById(R.id.rpmTextView) // <-- NEW
@@ -110,10 +110,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         // --- UPDATED Button Click Listeners ---
-        // (Fixed duplicate slower/faster listeners)
+
+        // --- EDITED ---
         startButton.setOnClickListener {
+            // Send a sequence: Power ON, Direction CW, Speed 10%
             sendBluetoothCommand("s") // 's' for Start Master Power
-            Toast.makeText(this, "Start (s) sent", LENGTH_SHORT).show()
+            sendBluetoothCommand("c") // 'c' for Clockwise (default direction)
+            sendBluetoothCommand("f") // 'f' for Faster (sets speed to 10%)
+            Toast.makeText(this, "Start (s, c, f) sent", LENGTH_SHORT).show()
         }
 
         slowerButton.setOnClickListener {
@@ -126,8 +130,9 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Faster (f) sent", LENGTH_SHORT).show()
         }
 
+        // --- EDITED ---
         stopButton.setOnClickListener {
-            sendBluetoothCommand("f") // 'f' for Faster
+            sendBluetoothCommand("x") // 'x' for Full Stop
             Toast.makeText(this, "Stop (x) sent", LENGTH_SHORT).show()
         }
 
@@ -176,19 +181,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // --- Permission Handling (Unchanged) ---
+    // --- Permission Handling ---
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            if (permissions[Manifest.permission.BLUETOOTH_SCAN] == true &&
-                permissions[Manifest.permission.BLUETOOTH_CONNECT] == true) {
+            // Check if all permissions we asked for were granted
+            val allGranted = permissions.values.all { it }
+            if (allGranted) {
                 Toast.makeText(this, "Permissions Granted!", LENGTH_SHORT).show()
             } else {
-                Toast.makeText(this, "Bluetooth permissions are required", LENGTH_LONG).show()
+                Toast.makeText(this, "Bluetooth and Location permissions are required", LENGTH_LONG).show()
             }
         }
 
     private fun checkBluetoothPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12+
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissionLauncher.launch(
@@ -198,16 +205,17 @@ class MainActivity : AppCompatActivity() {
                     )
                 )
             }
-        } else if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                101
-            )
+        } else {
+            // Android 11 and older
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+                )
+            }
         }
     }
 
-    // --- Bluetooth Actions (startBluetoothScan & launchers are Unchanged) ---
+    // --- Bluetooth Actions ---
     private fun startBluetoothScan() {
         if (bluetoothAdapter?.isEnabled == false) {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
@@ -216,7 +224,19 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Scanning...", LENGTH_SHORT).show()
             deviceListAdapter.clear()
             discoveredDevices.clear()
-            bluetoothAdapter?.startDiscovery()
+
+            // Check correct permission for scanning
+            val hasScanPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
+            } else {
+                ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            }
+
+            if (hasScanPermission) {
+                bluetoothAdapter?.startDiscovery()
+            } else {
+                Toast.makeText(this, "Scan permission missing", LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -234,9 +254,19 @@ class MainActivity : AppCompatActivity() {
             if (intent.action == BluetoothDevice.ACTION_FOUND) {
                 val device: BluetoothDevice? = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
                 if (device != null && device.name != null) {
-                    if (!discoveredDevices.contains(device)) {
-                        discoveredDevices.add(device)
-                        deviceListAdapter.add(device.name + "\n" + device.address)
+
+                    // Check correct permission for getting device info
+                    val hasConnectPermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+                    } else {
+                        true // No special permission needed on older versions
+                    }
+
+                    if (hasConnectPermission) {
+                        if (!discoveredDevices.contains(device)) {
+                            discoveredDevices.add(device)
+                            deviceListAdapter.add(device.name + "\n" + device.address)
+                        }
                     }
                 }
             }
