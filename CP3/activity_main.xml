@@ -1,4 +1,4 @@
-<!-- Nevan comment: This is the xml file of the cp2 code. The purpose of this code is to set up the buttons and RPM display visuals -->
+<!-- Nevan comment: This is the xml file of the cp3 code. The purpose of this code is to set up the buttons and RPM display visuals -->
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
