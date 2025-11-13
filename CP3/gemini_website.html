@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RP4 Motor Project Showcase</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Font: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Apply Inter font */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Custom gradient for hero text */
+        .text-gradient {
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            background-image: linear-gradient(to right, #22d3ee, #3b82f6);
+        }
+
+        /* Simple scrollbar styling for a tech look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111827; /* bg-gray-900 */
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3b82f6; /* bg-blue-600 */
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #2563eb; /* bg-blue-700 */
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-200 selection:bg-cyan-500 selection:text-black">
+
+    <!-- Header / Navigation -->
+    <header class="sticky top-0 z-50 w-full bg-gray-950/80 backdrop-blur-md border-b border-gray-800">
+        <nav class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo / Project Title -->
+                <a href="#" class="text-2xl font-bold text-white">
+                    RP<span class="text-cyan-400">4</span> Motor Project
+                </a>
+                
+                <!-- Navigation Links -->
+                <div class="hidden sm:flex sm:space-x-8">
+                    <a href="#about" class="font-medium text-gray-300 hover:text-cyan-400 transition duration-150">About</a>
+                    <a href="#features" class="font-medium text-gray-300 hover:text-cyan-400 transition duration-150">Features</a>
+                    <a href="#gallery" class="font-medium text-gray-300 hover:text-cyan-400 transition duration-150">Gallery</a>
+                    <a href="#code" class="font-medium text-gray-300 hover:text-cyan-400 transition duration-150">Code</a>
+                </div>
+
+                <!-- Mobile Menu Button (Optional, not functional in this static demo) -->
+                <div class="sm:hidden">
+                    <button class="text-gray-300 hover:text-white focus:outline-none">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+
+        <!-- Hero Section -->
+        <section class="relative flex items-center justify-center min-h-screen pt-16 pb-32 overflow-hidden">
+            <!-- Background Gradient -->
+            <div aria-hidden="true" class="absolute inset-0 z-0">
+                <div class="absolute inset-0 bg-gray-950"></div>
+                <div class="absolute top-0 left-1/4 w-96 h-96 bg-cyan-900/50 rounded-full blur-3xl opacity-20 animate-pulse"></div>
+                <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-blue-900/50 rounded-full blur-3xl opacity-20 animate-pulse" style="animation-delay: 2s;"></div>
+            </div>
+
+            <div class="relative z-10 max-w-4xl mx-auto px-4 text-center">
+                <h1 class="text-5xl md:text-7xl lg:text-8xl font-black uppercase">
+                    The <span class="text-gradient">RP4 Motor</span> Project
+                </h1>
+                <p class="mt-6 text-lg md:text-xl text-gray-300 max-w-2xl mx-auto">
+                    Precision, Power, and Python. A modern robotics showcase built on the Raspberry Pi 4, bringing web-controlled motion to your fingertips.
+                </p>
+                <div class="mt-10 flex justify-center gap-4">
+                    <a href="#gallery" class="px-8 py-3 bg-cyan-500 text-gray-900 font-bold rounded-lg shadow-lg shadow-cyan-500/20 hover:bg-cyan-400 transition duration-200 transform hover:scale-105">
+                        See it in Action
+                    </a>
+                    <a href="#code" class="px-8 py-3 bg-gray-800 text-gray-200 font-bold rounded-lg shadow-lg hover:bg-gray-700 transition duration-200 transform hover:scale-105">
+                        View The Code
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- About Section -->
+        <section id="about" class="py-24 sm:py-32 bg-gray-900">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                    <div>
+                        <img 
+                            src="https://placehold.co/600x450/1f2937/9ca3af?text=RP4+Motor+Assembly" 
+                            alt="RP4 Motor Project Assembly" 
+                            class="rounded-lg shadow-2xl"
+                            onerror="this.src='https://placehold.co/600x450/1f2937/9ca3af?text=Image+Not+Found'"
+                        >
+                    </div>
+                    <div>
+                        <span class="text-sm font-bold uppercase text-cyan-400">The Project</span>
+                        <h2 class="mt-2 text-3xl md:text-4xl font-extrabold text-white">
+                            What is the RP4 Project?
+                        </h2>
+                        <p class="mt-6 text-lg text-gray-300">
+                            The RP4 Motor Project is a high-precision, web-controlled motor system built around the versatile Raspberry Pi 4. It combines the power of Python scripting with robust hardware to deliver precise control over a stepper motor from any device on the network.
+                        </p>
+                        <p class="mt-4 text-lg text-gray-300">
+                            Whether for a 3D printer, a camera slider, a custom robot, or a home automation task, this project provides the open-source foundation for powerful and accessible motion control.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section id="features" class="py-24 sm:py-32">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <span class="text-sm font-bold uppercase text-cyan-400">Capabilities</span>
+                    <h2 class="mt-2 text-3xl md:text-4xl font-extrabold text-white">
+                        Core Features
+                    </h2>
+                    <p class="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
+                        Packed with features that make it powerful, flexible, and easy to use.
+                    </p>
+                </div>
+
+                <div class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <!-- Feature Card 1 -->
+                    <div class="bg-gray-900 p-8 rounded-lg shadow-lg border border-gray-800 transform transition duration-300 hover:scale-105 hover:border-cyan-500">
+                        <div class="flex-shrink-0">
+                            <!-- Icon: Cog -->
+                            <svg class="h-10 w-10 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12a7.5 7.5 0 0015 0m-15 0a7.5 7.5 0 1115 0m-15 0H3m1.5 0H6m1.5 0H9m1.5 0H12m1.5 0H15m1.5 0H18m1.5 0H21m-16.5 0a7.5 7.5 0 0115 0" />
+                            </svg>
+                        </div>
+                        <h3 class="mt-4 text-xl font-bold text-white">Precision Stepper Control</h3>
+                        <p class="mt-2 text-gray-300">Utilizes micro-stepping drivers for incredibly smooth and accurate motor positioning, perfect for detailed tasks.</p>
+                    </div>
+
+                    <!-- Feature Card 2 -->
+                    <div class="bg-gray-900 p-8 rounded-lg shadow-lg border border-gray-800 transform transition duration-300 hover:scale-105 hover:border-cyan-500">
+                        <!-- Icon: Globe -->
+                        <svg class="h-10 w-10 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c.24 0 .468-.02.69-.058m-1.38 0A9.004 9.004 0 0112 3c.24 0 .468.02.69.058m-1.38 0c-.24 0-.468-.02-.69-.058m0 0A9.004 9.004 0 003 12c0 .24.02.468.058.69m0 0c.038.222.058.45.058.69m0 0A9.004 9.004 0 0012 21c.24 0 .468-.02.69-.058m0 0c.222-.038.45-.058.69-.058m0 0A9.004 9.004 0 0021 12c0-.24-.02-.468-.058-.69m0 0c-.038-.222-.058-.45-.058-.69m0 0A9.004 9.004 0 0012 3c-.24 0-.468.02-.69.058m0 0c-.222.038-.45.058-.69.058" />
+                        </svg>
+                        <h3 class="mt-4 text-xl font-bold text-white">Remote Web Interface</h3>
+                        <p class="mt-2 text-gray-300">Control the motor from your phone, tablet, or PC via a responsive web dashboard served directly from the Pi.</p>
+                    </div>
+
+                    <!-- Feature Card 3 -->
+                    <div class="bg-gray-900 p-8 rounded-lg shadow-lg border border-gray-800 transform transition duration-300 hover:scale-105 hover:border-cyan-500">
+                        <!-- Icon: Code -->
+                        <svg class="h-10 w-10 text-cyan-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5 0l-4.5 16.5" />
+                        </svg>
+                        <h3 class="mt-4 text-xl font-bold text-white">Open Source & Extensible</h3>
+                        <p class="mt-2 text-gray-300">Built with Python and Flask, the entire project is open-source. Add new features, integrate APIs, or customize it to your needs.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Gallery Section -->
+        <section id="gallery" class="py-24 sm:py-32 bg-gray-900">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center">
+                    <span class="text-sm font-bold uppercase text-cyan-400">Showcase</span>
+                    <h2 class="mt-2 text-3xl md:text-4xl font-extrabold text-white">
+                        Project Gallery
+                    </h2>
+                    <p class="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">
+                        A closer look at the hardware, wiring, and the final assembly.
+                    </p>
+                </div>
+                
+                <div class="mt-16 grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+                    <img src="https://placehold.co/600x400/1f2937/9ca3af?text=Motor+Assembly" alt="Motor Assembly" class="rounded-lg shadow-lg hover:opacity-80 transition duration-200" onerror="this.src='https://placehold.co/600x400/1f2937/9ca3af?text=Image+Not+Found'">
+                    <img src="https://placehold.co/600x400/1f2937/9ca3af?text=RP4+Wiring" alt="Raspberry Pi 4 Wiring" class="rounded-lg shadow-lg hover:opacity-80 transition duration-200" onerror="this.src='https://placehold.co/600x400/1f2937/9ca3af?text=Image+Not+Found'">
+                    <img src="https://placehold.co/600x400/1f2937/9ca3af?text=3D+Printed+Mount" alt="3D Printed Mount" class="rounded-lg shadow-lg hover:opacity-80 transition duration-200" onerror="this.src='https://placehold.co/600x400/1f2937/9ca3af?text=Image+Not+Found'">
+                    <img src="https://placehold.co/600x400/1f2937/9ca3af?text=Web+UI+Screenshot" alt="Web UI" class="rounded-lg shadow-lg col-span-2 md:col-span-1 hover:opacity-80 transition duration-200" onerror="this.src='https://placehold.co/600x400/1f2937/9ca3af?text=Image+Not+Found'">
+                    <img src="https://placehold.co/600x400/1f2937/9ca3af?text=Motor+in+Action" alt="Motor in Action" class="rounded-lg shadow-lg hover:opacity-80 transition duration-200" onerror="this.src='https://placehold.co/600x400/1f2937/9ca3af?text=Image+Not+Found'">
+                    <img src="https://placehold.co/600x400/1f2937/9ca3af?text=Project+Schematic" alt="Project Schematic" class="rounded-lg shadow-lg hover:opacity-80 transition duration-200" onerror="this.src='https://placehold.co/600x400/1f2937/9ca3af?text=Image+Not+Found'">
+                </div>
+            </div>
+        </section>
+
+        <!-- Tech Specs & Code Section -->
+        <section id="code" class="py-24 sm:py-32">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
+                
+                <!-- Tech Specs -->
+                <div>
+                    <span class="text-sm font-bold uppercase text-cyan-400">The Build</span>
+                    <h2 class="mt-2 text-3xl md:text-4xl font-extrabold text-white">
+                        Technical Specifications
+                    </h2>
+                    <p class="mt-4 text-lg text-gray-300">
+                        The core components that power the project.
+                    </p>
+                    <ul class="mt-8 space-y-4">
+                        <li class="flex items-start">
+                            <svg class="flex-shrink-0 h-6 w-6 text-cyan-400 mt-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span class="ml-3 text-lg text-gray-200"><strong class="font-bold text-white">Core:</strong> Raspberry Pi 4 Model B (4GB)</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="flex-shrink-0 h-6 w-6 text-cyan-400 mt-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span class="ml-3 text-lg text-gray-200"><strong class="font-bold text-white">Motor:</strong> NEMA 17 Stepper Motor</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="flex-shrink-0 h-6 w-6 text-cyan-400 mt-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span class="ml-3 text-lg text-gray-200"><strong class="font-bold text-white">Driver:</strong> DRV8825 Stepper Motor Driver</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="flex-shrink-0 h-6 w-6 text-cyan-400 mt-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span class="ml-3 text-lg text-gray-200"><strong class="font-bold text-white">Software:</strong> Python 3, Flask Web Server, RPi.GPIO Library</span>
+                        </li>
+                        <li class="flex items-start">
+                            <svg class="flex-shrink-0 h-6 w-6 text-cyan-400 mt-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span class="ml-3 text-lg text-gray-200"><strong class="font-bold text-white">Frame:</strong> Custom 3D Printed Mounts & 2020 Aluminum Extrusion</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Code Snippet -->
+                <div>
+                    <span class="text-sm font-bold uppercase text-cyan-400">The Logic</span>
+                    <h2 class="mt-2 text-3xl md:text-4xl font-extrabold text-white">
+                        Code Snapshot
+                    </h2>
+                    <p class="mt-4 text-lg text-gray-300">
+                        A quick look at the Python Flask server that powers the web UI.
+                    </p>
+                    
+                    <div class="mt-8 bg-gray-900 rounded-lg overflow-hidden border border-gray-800">
+                        <div class="p-4 bg-gray-800 text-gray-400 text-sm font-mono border-b border-gray-700">
+                            app_server.py
+                        </div>
+                        <pre class="p-6 text-sm text-white overflow-x-auto"><code class="language-python"><span class="text-pink-400">from</span> flask <span class="text-pink-400">import</span> Flask, render_template
+<span class="text-pink-400">import</span> RPi.GPIO <span class="text-pink-400">as</span> GPIO
+<span class="text-pink-400">import</span> time
+
+app = Flask(__name__)
+
+<span class="text-gray-500"># Define GPIO pins</span>
+DIR_PIN = 20
+STEP_PIN = 21
+
+<span class="text-cyan-400">@app.route</span>(<span class="text-lime-300">'/'</span>)
+<span class="text-blue-400">def</span> <span class="text-yellow-300">index</span>():
+    <span class="text-pink-400">return</span> render_template(<span class="text-lime-300">'index.html'</span>)
+
+<span class="text-cyan-400">@app.route</span>(<span class="text-lime-300">'/move/&lt;direction&gt;/&lt;int:steps&gt;'</span>)
+<span class="text-blue-400">def</span> <span class="text-yellow-300">move_motor</span>(direction, steps):
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(DIR_PIN, GPIO.OUT)
+    GPIO.setup(STEP_PIN, GPIO.OUT)
+
+    <span class="text-blue-400">if</span> direction == <span class="text-lime-300">'forward'</span>:
+        GPIO.output(DIR_PIN, GPIO.HIGH)
+    <span class="text-blue-400">else</span>:
+        GPIO.output(DIR_PIN, GPIO.LOW)
+
+    <span class="text-blue-400">for</span> _ <span class="text-pink-400">in</span> <span class="text-yellow-300">range</span>(steps):
+        GPIO.output(STEP_PIN, GPIO.HIGH)
+        time.sleep(<span class="text-purple-300">0.001</span>)
+        GPIO.output(STEP_PIN, GPIO.LOW)
+        time.sleep(<span class="text-purple-300">0.001</span>)
+    
+    GPIO.cleanup()
+    <span class="text-pink-400">return</span> {<span class="text-lime-300">"status"</span>: <span class="text-lime-300">"success"</span>, <span class="text-lime-300">"steps_moved"</span>: steps}
+
+<span class="text-blue-400">if</span> __name__ == <span class="text-lime-300">'__main__'</span>:
+    app.run(host=<span class="text-lime-300">'0.0.0.0'</span>, port=<span class="text-purple-300">80</span>, debug=<span class="text-cyan-400">True</span>)
+</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 border-t border-gray-800">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div class="text-center md:text-left">
+                    <p class="text-lg font-bold">RP4 Motor Project</p>
+                    <p class="mt-1 text-gray-400">© 2025. All custom code is open-source.</p>
+                </div>
+                <!-- Social Links (replace # with your links) -->
+                <div class="flex space-x-6 mt-4 md:mt-0">
+                    <a href="#" class="text-gray-400 hover:text-white" aria-label="GitHub">
+                        <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                            <path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.026 2.747-1.026.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd" />
+                        </svg>
+                    </a>
+                    <a href="#" class="text-gray-400 hover:text-white" aria-label="YouTube">
+                        <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M19.615 3.184c-3.604-.246-11.631-.246-15.23 0C.515 3.42 0 4.92 0 8.001c0 3.08 0.515 4.58 4.385 4.816 3.6.246 11.626.246 15.23 0C23.485 12.58 24 11.08 24 8.001c0-3.08-0.515-4.58-4.385-4.816zM9.6 11.5V4.5l6 3.5-6 3.5z" />
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
