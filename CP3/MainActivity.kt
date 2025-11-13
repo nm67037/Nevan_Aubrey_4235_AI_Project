@@ -1,4 +1,4 @@
-//Nevan comment: This is the final working main app code from Gemini for CP2.
+//Nevan comment: This is the final working main app code from Gemini for CP3.
 
 package com.example.myapplication // <-- IMPORTANT: Make sure this package name matches your project's!
 
