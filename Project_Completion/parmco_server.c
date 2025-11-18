@@ -1,13 +1,12 @@
 /*
- * PARMCO - Bluetooth Server (Final NOISE-PROOF Version)
+ * PARMCO - Bluetooth Server (Final Hybrid Feed-Forward Version)
  * AI Author: Gemini
  * Date: 11/17/2025
  *
- * FIXES:
- * - FILTERING: Increased glitch filter to 2500us (removes electrical noise).
- * - SMOOTHING: Increased to 0.8 (ignores spikes).
- * - PHYSICS: Added logic to reject "impossible" RPM jumps.
- * - PID: Slowed down reaction time to prevent oscillation.
+ * STRATEGY:
+ * - Feed-Forward: Instantly sets motor to estimated power for target RPM.
+ * - PID Trim: Uses feedback to fine-tune speed (+/- 20% authority).
+ * - Safety: If sensor fails (RPM=0), motor stays at Feed-Forward speed.
  */
 
 #include <stdio.h>
@@ -34,15 +33,14 @@
 #define LOOP_PERIOD 1000000 // 1.0 Second Loop
 
 // --- Tuning ---
-#define GLITCH_FILTER_US 2500 // Aggressive noise filtering (2.5ms)
-#define RPM_SMOOTHING 0.8     // High smoothing (Trust history 80%, new 20%)
+#define GLITCH_FILTER_US 2000  
+#define RPM_SMOOTHING    0.5   
 
-#define PID_KP 0.02   // Very Gentle P
-#define PID_KI 0.0    // No I
-#define PID_KD 0.0    // No D
-#define PID_MAX_INTEGRAL 100.0 
-#define PID_MIN_INTEGRAL -100.0
-#define MAX_CHANGE_PER_LOOP 5 // Max 5% change per second
+// --- FEED-FORWARD CONSTANTS ---
+// This limits the PID. It can only add/remove 20% power max.
+#define PID_MAX_ADJUST   20
+#define PID_MIN_ADJUST   -20
+#define PID_KP           0.1  // Gentle correction
 
 // --- Global Variables ---
 static volatile int keep_running = 1;     
@@ -56,8 +54,7 @@ typedef enum { MANUAL_MODE, AUTO_MODE } ControlMode;
 static ControlMode current_mode = MANUAL_MODE;
 static volatile int motor_running = 0;  
 static volatile int desired_rpm = 0;    
-static double pid_integral = 0;         
-static double pid_last_error = 0;       
+static int pid_adjustment = 0; // The "+/-" trim from the sensor
 
 // --- State Machine Parser ---
 typedef enum { STATE_NORMAL, STATE_WAIT_COLON, STATE_READ_NUM } ParseState;
@@ -65,9 +62,8 @@ static ParseState p_state = STATE_NORMAL;
 static char num_buffer[16];
 static int num_buf_idx = 0;
 
-// RISING EDGE
 void rpm_callback(int pi, unsigned gpio, unsigned level, uint32_t tick) {
-    if (level == 1) revolution_count++;
+    revolution_count++;
 }
 
 void stop_all_activity() {
@@ -83,8 +79,7 @@ void stop_all_activity() {
     rpm_smooth = 0;
     motor_running = 0;
     desired_rpm = 0;
-    pid_integral = 0;
-    pid_last_error = 0;
+    pid_adjustment = 0;
     p_state = STATE_NORMAL;
 }
 
@@ -99,35 +94,60 @@ int clamp_duty(int d) {
     return d;
 }
 
-void update_pid_controller() {
+// --- ESTIMATOR FUNCTION ---
+// Returns the baseline power % needed for a target RPM.
+// You can tune these "guess" numbers based on your motor!
+int get_feedforward_duty(int target) {
+    if (target <= 0) return 0;
+    if (target <= 500) return 40;  // Start power
+    if (target <= 800) return 50;
+    if (target <= 1200) return 60;
+    if (target <= 1800) return 75;
+    if (target <= 2200) return 85;
+    return 100; // > 2200 RPM
+}
+
+void update_control_loop() {
     if (current_mode != AUTO_MODE || !motor_running) return;
 
-    // --- Anti-Stall Kickstart ---
-    // If target > 0 but we are stopped, jump to 40% to break friction
-    if (desired_rpm > 0 && rpm_smooth < 100 && speed_percent < 40) {
-        speed_percent = 40; 
-        printf("KICKSTART: Boosting power to 40%%\n");
-        hardware_PWM(pi, SPEED_PIN, PWM_FREQ, speed_percent * 10000);
-        return; 
+    // 1. Get Baseline Power (Open Loop)
+    int base_duty = get_feedforward_duty(desired_rpm);
+
+    // 2. Calculate PID Trim (Closed Loop)
+    // Only run PID if we have a valid sensor reading (>0) or we are trying to stop
+    if (rpm_smooth > 0 || desired_rpm == 0) {
+        double error = (double)desired_rpm - (double)rpm_smooth;
+        
+        // Simple P-Controller updates the adjustment accumulator
+        // We divide by 10 to make it gentle (Integrator-like behavior)
+        int step = (int)(error * PID_KP * 0.5); 
+        
+        pid_adjustment += step;
+    } else {
+        // SAFETY: If RPM is 0 but we want to move, assume sensor fail/stall.
+        // Do NOT wind up the PID. Just stick to the FeedForward base.
+        printf("WARN: No RPM signal. Holding Baseline Power.\n");
+        // Slowly decay any previous adjustment to return to safe baseline
+        if (pid_adjustment > 0) pid_adjustment--;
+        if (pid_adjustment < 0) pid_adjustment++;
     }
 
-    double error = (double)desired_rpm - (double)rpm_smooth;
-    pid_integral = 0; // Disabled I term for stability
-    double output = (PID_KP * error);
+    // 3. Clamp the Trim
+    // Don't let the feedback change the power by more than +/- 20%
+    if (pid_adjustment > PID_MAX_ADJUST) pid_adjustment = PID_MAX_ADJUST;
+    if (pid_adjustment < PID_MIN_ADJUST) pid_adjustment = PID_MIN_ADJUST;
 
-    int change = (int)output;
-    if (change > MAX_CHANGE_PER_LOOP) change = MAX_CHANGE_PER_LOOP;
-    if (change < -MAX_CHANGE_PER_LOOP) change = -MAX_CHANGE_PER_LOOP;
+    // 4. Combine
+    speed_percent = base_duty + pid_adjustment;
 
-    speed_percent += change;
+    // 5. Final Safety Clamps
     if (speed_percent > 100) speed_percent = 100;
     if (speed_percent < 0) speed_percent = 0;
 
     hardware_PWM(pi, SPEED_PIN, PWM_FREQ, speed_percent * 10000);
-    pid_last_error = error;
     
-    printf("PID: Tgt=%d Act=%d Err=%.1f Chg=%d Speed=%d%%\n", 
-           desired_rpm, rpm_smooth, error, change, speed_percent);
+    printf("AUTO: Tgt=%d Act=%d | Base=%d%% Trim=%d%% | Final=%d%%\n", 
+           desired_rpm, rpm_smooth, base_duty, pid_adjustment, speed_percent);
 }
 
 void process_command(char cmd) {
@@ -136,7 +156,7 @@ void process_command(char cmd) {
         case 's':
             gpio_write(pi, MASTER_ON_PIN, 1);
             motor_running = 1;
-            pid_integral = 0; pid_last_error = 0;
+            pid_adjustment = 0;
             break;
         case 'x': stop_all_activity(); break;
         case 'c': gpio_write(pi, DIR_A_PIN, 0); gpio_write(pi, DIR_B_PIN, 1); break;
@@ -161,7 +181,7 @@ void process_command(char cmd) {
                  gpio_write(pi, DIR_A_PIN, 0); gpio_write(pi, DIR_B_PIN, 1);
             }
             if (desired_rpm == 0) desired_rpm = 500; 
-            pid_integral = 0; pid_last_error = 0;
+            pid_adjustment = 0;
             printf("Switched to AUTO_MODE (Target: %d)\n", desired_rpm);
             break;
         case 'm':
@@ -170,11 +190,9 @@ void process_command(char cmd) {
             break;
         case '+':
             if (current_mode == AUTO_MODE) desired_rpm += 100;
-            printf("Target: %d\n", desired_rpm);
             break;
         case '-':
             if (current_mode == AUTO_MODE) { desired_rpm -= 100; if(desired_rpm<0) desired_rpm=0; }
-            printf("Target: %d\n", desired_rpm);
             break;
     }
 }
@@ -204,6 +222,7 @@ void parse_input_byte(char c) {
                              gpio_write(pi, DIR_A_PIN, 0); gpio_write(pi, DIR_B_PIN, 1);
                         }
                     }
+                    pid_adjustment = 0; // Reset trim on new target
                 }
                 p_state = STATE_NORMAL;
                 if (c != '\n' && c != '\r') process_command(c);
@@ -213,6 +232,8 @@ void parse_input_byte(char c) {
 }
 
 int main() {
+    setbuf(stdout, NULL); // Unbuffered logs
+
     signal(SIGINT, int_handler);
     signal(SIGTERM, int_handler);
 
@@ -226,8 +247,7 @@ int main() {
     
     set_mode(pi, SENSOR_PIN, PI_INPUT);
     set_pull_up_down(pi, SENSOR_PIN, PI_PUD_UP);
-    
-    // --- Aggressive Glitch Filter (2.5ms) ---
+    // Filter set to 2ms to reject noise but allow signal
     set_glitch_filter(pi, SENSOR_PIN, GLITCH_FILTER_US); 
     
     stop_all_activity();
@@ -268,28 +288,27 @@ int main() {
         while (keep_running) {
             uint32_t current_tick = get_current_tick(pi);
 
+            // --- CONTROL LOOP (1 Second) ---
             if ((current_tick - last_loop_tick) >= LOOP_PERIOD) {
                 double revs = (double)revolution_count / 3.0;
                 double seconds = (double)LOOP_PERIOD / 1000000.0;
                 int raw_rpm = (int)((revs / seconds) * 60.0);
                 
-                // --- PHYSICS CHECK: Impossible Acceleration ---
-                // If RPM jumps > 3x the average, and the average isn't near 0, ignore it.
-                if (rpm_smooth > 200 && raw_rpm > (rpm_smooth * 3)) {
-                     printf("NOISE REJECTED: Raw=%d (Avg=%d)\n", raw_rpm, rpm_smooth);
-                     // Use previous smoothed value (hold steady)
+                // Hard Cap Filter
+                if (raw_rpm > 4000) {
+                     printf("NOISE IGNORED: %d\n", raw_rpm);
                 } else {
-                     // Strong Smoothing (0.8)
+                     rpm = raw_rpm;
                      rpm_smooth = (int)((RPM_SMOOTHING * rpm_smooth) + ((1.0 - RPM_SMOOTHING) * raw_rpm));
                 }
 
                 revolution_count = 0;
                 last_loop_tick = current_tick;
-                update_pid_controller();
+                update_control_loop();
             }
 
+            // --- SEND DATA (500ms) ---
             if ((current_tick - last_send_tick) >= 500000) { 
-                // Send "RPM:" format
                 snprintf(data_str, sizeof(data_str), "RPM:%d\n", rpm_smooth);
                 int write_ret = write(client_sock, data_str, strlen(data_str));
                 if (write_ret < 0) {
