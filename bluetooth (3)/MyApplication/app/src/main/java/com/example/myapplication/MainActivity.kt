@@ -177,7 +177,7 @@ class MainActivity : AppCompatActivity() {
         sendRpmButton.setOnClickListener {
             val rpmValue = rpmEditText.text.toString()
             if (rpmValue.isNotEmpty()) {
-                val command = "r:$rpmValue"
+                val command = "r:$rpmValue\n"
                 sendBluetoothCommand(command)
                 Toast.makeText(this, "Sent RPM: $rpmValue", LENGTH_SHORT).show()
             } else {
