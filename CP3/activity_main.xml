@@ -1,0 +1,68 @@
+<!-- Nevan comment: This is the xml file of the cp3 code. The purpose of this code is to set up the buttons and RPM display visuals -->
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:context=".MainActivity">
+
+    <Button
+        android:id="@+id/scanButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Scan for Devices" />
+
+
+    <Button
+        android:id="@+id/startButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Start" />
+
+    <Button
+        android:id="@+id/slowerButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Slower" />
+
+    <Button
+        android:id="@+id/toggleDirectionButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Toggle Direction (CW or CCW)" />
+
+    <Button
+        android:id="@+id/fasterButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Faster" />
+
+    <Button
+        android:id="@+id/stopButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Stop" />
+
+
+    <ListView
+        android:id="@+id/devicesListView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="16dp" />
+
+    <!-- ADD THIS TO YOUR activity_main.xml -->
+    <TextView
+        android:id="@+id/rpmTextView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="RPM: 0"
+        android:textSize="24sp"
+        android:textAlignment="center"
+        android:padding="10dp"
+        android:textColor="#FFFFFF" />
+
+</LinearLayout>
