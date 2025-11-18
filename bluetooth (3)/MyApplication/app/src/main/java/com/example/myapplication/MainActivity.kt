@@ -7,16 +7,19 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
+import android.content.ContentValues // ⭐️ ADDED IMPORT
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment // ⭐️ ADDED IMPORT
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
-import android.util.Log // ⭐️ ADDED IMPORT
+import android.provider.MediaStore // ⭐️ ADDED IMPORT
+import android.util.Log
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -36,12 +39,15 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStream
+import java.text.SimpleDateFormat // ⭐️ ADDED IMPORT
+import java.util.Date // ⭐️ ADDED IMPORT
+import java.util.Locale // ⭐️ ADDED IMPORT
 import java.util.UUID
 
 // Define a message type for our Handler
 private const val MESSAGE_READ: Int = 0
 
-// --- NEW: Data class for our timeseries data ---
+// Data class for our timeseries data
 data class RpmDataPoint(val timestampMs: Long, val rpm: Int)
 
 @SuppressLint("MissingPermission") // We are checking permissions, so this is safe
@@ -65,7 +71,7 @@ class MainActivity : AppCompatActivity() {
     private var isMotorStopped = true // Default to "stopped"
     private var isAutoMode = false // Default to Manual Mode
 
-    // --- NEW: Variables for Data Logging ---
+    // --- Variables for Data Logging ---
     private val rpmDataLog = ArrayList<RpmDataPoint>()
     private var loggingStartTime: Long = 0L // 0 means "not logging"
 
@@ -93,20 +99,14 @@ class MainActivity : AppCompatActivity() {
                     if (readMessage.startsWith("RPM:")) {
                         rpmTextView.text = readMessage.trim() // Update the TextView
 
-                        // --- NEW: Data logging logic ---
-                        // Check if logging is currently active
+                        // --- Data logging logic ---
                         if (loggingStartTime > 0L) {
                             try {
-                                // Parse the RPM value from the string
                                 val rpmValue = readMessage.removePrefix("RPM:").trim().toInt()
-                                // Get the current time
                                 val currentTime = System.currentTimeMillis()
-                                // Calculate the relative time since "Start" was pressed
                                 val relativeTime = currentTime - loggingStartTime
-                                // Add the new data point to our log
                                 rpmDataLog.add(RpmDataPoint(relativeTime, rpmValue))
                             } catch (e: NumberFormatException) {
-                                // In case the RPM value is not a valid number
                                 Log.e("RPM_LOG", "Failed to parse RPM: $readMessage")
                             }
                         }
@@ -151,7 +151,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // 3. Request Bluetooth permissions
-        checkBluetoothPermissions()
+        checkBluetoothPermissions() // This function already handles the BT permissions
 
         // 4. Set "Scan" button click
         scanButton.setOnClickListener {
@@ -233,9 +233,9 @@ class MainActivity : AppCompatActivity() {
             isMotorStopped = true // Motor is now stopped
             Toast.makeText(this, "Stop (x) sent", LENGTH_SHORT).show()
 
-            // --- NEW: Stop logging and print data ---
+            // --- UPDATED: Stop logging and save data ---
             loggingStartTime = 0L // Stop logging
-            logDataToConsole() // Print the results
+            saveDataToFile() // Save the results
         }
 
         toggleDirectionButton.setOnClickListener {
@@ -290,7 +290,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // --- Permission Handling ---
-    // ... (This whole section is unchanged) ...
+    // (This section is unchanged)
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             val allGranted = permissions.values.all { it }
@@ -303,7 +303,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkBluetoothPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Android 12+
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED ||
                 ContextCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissionLauncher.launch(
@@ -314,7 +313,6 @@ class MainActivity : AppCompatActivity() {
                 )
             }
         } else {
-            // Android 11 and older
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
                 requestPermissionLauncher.launch(
                     arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -324,7 +322,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // --- Bluetooth Actions ---
-    // ... (This whole section is unchanged) ...
+    // (This section is unchanged)
     private fun startBluetoothScan() {
         if (bluetoothAdapter?.isEnabled == false) {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
@@ -397,36 +395,73 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // --- NEW: Helper function to print the log ---
-    private fun logDataToConsole() {
+    // --- ⭐️ NEW: Replaced logDataToConsole() with this function ⭐️ ---
+    private fun saveDataToFile() {
         if (rpmDataLog.isEmpty()) {
-            Log.d("RPM_LOG", "No data logged.")
+            Toast.makeText(this, "No data to save", LENGTH_SHORT).show()
             return
         }
 
-        Log.d("RPM_LOG", "--- RPM Data Log (ms, RPM) ---")
-        // Iterate over the list and print each data point
+        // 1. Create the content for the file
+        val stringBuilder = StringBuilder()
+        stringBuilder.append("time(ms),RPM\n") // Add a CSV header
         rpmDataLog.forEach { dataPoint ->
-            Log.d("RPM_LOG", "${dataPoint.timestampMs}, ${dataPoint.rpm}")
+            stringBuilder.append("${dataPoint.timestampMs},${dataPoint.rpm}\n")
         }
-        Log.d("RPM_LOG", "--- End of Log (${rpmDataLog.size} points) ---")
+        val fileContent = stringBuilder.toString()
 
-        // Let the user know the data is ready
-        runOnUiThread {
-            Toast.makeText(this, "RPM data logged to Logcat", LENGTH_SHORT).show()
+        // 2. Create a unique filename
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val fileName = "rpm_log_$timeStamp.txt"
+
+        // 3. Save the file using MediaStore
+        // This is the modern, safe way to save to the Downloads folder
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+            put(MediaStore.MediaColumns.MIME_TYPE, "text/plain")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            }
+        }
+
+        var uri: android.net.Uri? = null
+        try {
+            uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            if (uri == null) {
+                throw IOException("Failed to create new MediaStore entry")
+            }
+
+            contentResolver.openOutputStream(uri).use { outputStream ->
+                if (outputStream == null) {
+                    throw IOException("Failed to open output stream")
+                }
+                outputStream.write(fileContent.toByteArray())
+            }
+
+            runOnUiThread {
+                Toast.makeText(this, "Log saved to Downloads folder!", LENGTH_LONG).show()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Log.e("RPM_SAVE", "Error saving file", e)
+            runOnUiThread {
+                Toast.makeText(this, "Error saving file: ${e.message}", LENGTH_LONG).show()
+            }
+            // If something went wrong, try to delete the partial file
+            if (uri != null) {
+                contentResolver.delete(uri, null, null)
+            }
         }
     }
 
-
     private fun sendBluetoothCommand(command: String) {
-        // ... (This function is unchanged) ...
+        // (This function is unchanged)
         if (outputStream == null) {
             Toast.makeText(this, "Not connected to a device", LENGTH_SHORT).show()
             return
         }
 
         val commandToSend = command
-
         Thread {
             try {
                 outputStream?.write(commandToSend.toByteArray())
@@ -440,11 +475,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connectToDevice(device: BluetoothDevice) {
-        // ... (This function is unchanged) ...
+        // (This function is unchanged)
         Thread {
             var socket: BluetoothSocket? = null
             try {
-                // Connect directly to RFCOMM Channel 22
                 socket = device.javaClass
                     .getMethod("createRfcommSocket", Int::class.java)
                     .invoke(device, 22) as BluetoothSocket
@@ -455,22 +489,20 @@ class MainActivity : AppCompatActivity() {
                 outputStream = socket.outputStream
                 inputStream = socket.inputStream
 
-                // Start the thread to listen for RPM data
                 readDataThread = Thread(this::readDataFromSocket)
                 readDataThread?.start()
 
                 runOnUiThread {
                     Toast.makeText(this, "Successfully connected to ${device.name}", LENGTH_LONG).show()
-                    // --- UPDATED: Set default state on connection ---
                     isMotorStopped = true
                     isAutoMode = false
                     updateUIForMode(isManualMode = true) // Default to manual mode
                 }
 
-            } catch (e: Exception) { // Catch general Exception for reflection
+            } catch (e: Exception) {
                 e.printStackTrace()
                 runOnUiThread {
-                    Toast.makeText(this, "Connection failed: ${e.message}", LENGTH_SHORT).show()
+                    Toast.makeText(this, "Connection failed: ${e.message}", LENGTH_LONG).show()
                 }
                 try {
                     socket?.close()
@@ -482,22 +514,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun readDataFromSocket() {
-        // ... (This function is unchanged) ...
+        // (This function is unchanged)
         val reader = BufferedReader(InputStreamReader(inputStream!!))
-
         while (true) {
             try {
-                // Read a line of text (blocks until a newline '\n' is received)
                 val line = reader.readLine()
                 if (line != null) {
-                    // Send the received line to the UI thread's Handler
                     handler.obtainMessage(MESSAGE_READ, line).sendToTarget()
                 } else {
-                    // line == null means the connection was closed
                     break
                 }
             } catch (e: IOException) {
-                // This happens when the socket is closed (e.g., in onDestroy or disconnect)
                 break
             }
         }
