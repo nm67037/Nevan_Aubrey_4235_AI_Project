@@ -6,3 +6,8 @@ ir: ir_test.c
 
 parmco: parmco_server.c
 	gcc -o parmco_server parmco_server.c -lpigpiod_if2 -lpthread -lrt -lbluetooth
+
+clean:
+	sudo killall pigpiod
+	sudo rm /var/run/pigpio.pid
+	sudo pigpiod

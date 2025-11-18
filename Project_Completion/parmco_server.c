@@ -1,11 +1,13 @@
 /*
- * PARMCO - Bluetooth Server with PID Control
+ * PARMCO - Bluetooth Server (Final NOISE-PROOF Version)
  * AI Author: Gemini
  * Date: 11/17/2025
  *
- * CHANGES (v3):
- * - FIX 1: Corrected integer division bug in RPM calculation.
- * - FIX 2: Made RPM send logic more robust.
+ * FIXES:
+ * - FILTERING: Increased glitch filter to 2500us (removes electrical noise).
+ * - SMOOTHING: Increased to 0.8 (ignores spikes).
+ * - PHYSICS: Added logic to reject "impossible" RPM jumps.
+ * - PID: Slowed down reaction time to prevent oscillation.
  */
 
 #include <stdio.h>
@@ -14,60 +16,63 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/socket.h>
-#include <fcntl.h>
-#include <pigpiod_if2.h>
+#include <fcntl.h>       
+#include <pigpiod_if2.h> 
 #include <bluetooth/bluetooth.h>
 #include <bluetooth/rfcomm.h>
 #include <errno.h>
 #include <ctype.h>
 
-// --- Pin Definitions ---
-#define MASTER_ON_PIN 17
-#define DIR_A_PIN 27
-#define DIR_B_PIN 22
-#define SPEED_PIN 18
-#define SENSOR_PIN 23
+#define MASTER_ON_PIN 17 
+#define DIR_A_PIN     27
+#define DIR_B_PIN     22
+#define SPEED_PIN     18 
+#define SENSOR_PIN    23 
 
 #define PWM_FREQ 1000
 #define RFCOMM_CHANNEL 22
+#define LOOP_PERIOD 1000000 // 1.0 Second Loop
 
-// --- Control Mode State ---
-typedef enum {
-    MANUAL_MODE,
-    AUTO_MODE
-} ControlMode;
+// --- Tuning ---
+#define GLITCH_FILTER_US 2500 // Aggressive noise filtering (2.5ms)
+#define RPM_SMOOTHING 0.8     // High smoothing (Trust history 80%, new 20%)
 
-// --- PID Constants (THESE MUST BE TUNED!) ---
-#define PID_KP 0.5
-#define PID_KI 0.2
-#define PID_KD 0.1
-#define PID_MAX_INTEGRAL 100.0
+#define PID_KP 0.02   // Very Gentle P
+#define PID_KI 0.0    // No I
+#define PID_KD 0.0    // No D
+#define PID_MAX_INTEGRAL 100.0 
 #define PID_MIN_INTEGRAL -100.0
+#define MAX_CHANGE_PER_LOOP 5 // Max 5% change per second
 
 // --- Global Variables ---
-static volatile int keep_running = 1;
-static volatile int revolution_count = 0;
-static volatile int rpm = 0;
-static int speed_percent = 0;
-static int pi;
+static volatile int keep_running = 1;     
+static volatile int revolution_count = 0; 
+static volatile int rpm = 0;       
+static volatile int rpm_smooth = 0; 
+static int speed_percent = 0; 
+static int pi;                            
 
-// --- State & PID Variables ---
+typedef enum { MANUAL_MODE, AUTO_MODE } ControlMode;
 static ControlMode current_mode = MANUAL_MODE;
-static volatile int motor_running = 0;
-static volatile int desired_rpm = 0;
-static double pid_integral = 0;
-static double pid_last_error = 0;
+static volatile int motor_running = 0;  
+static volatile int desired_rpm = 0;    
+static double pid_integral = 0;         
+static double pid_last_error = 0;       
 
+// --- State Machine Parser ---
+typedef enum { STATE_NORMAL, STATE_WAIT_COLON, STATE_READ_NUM } ParseState;
+static ParseState p_state = STATE_NORMAL;
+static char num_buffer[16];
+static int num_buf_idx = 0;
 
+// RISING EDGE
 void rpm_callback(int pi, unsigned gpio, unsigned level, uint32_t tick) {
-    if (level == 1) {
-        revolution_count++;
-    }
+    if (level == 1) revolution_count++;
 }
 
 void stop_all_activity() {
     if (pi >= 0) {
-        hardware_PWM(pi, SPEED_PIN, PWM_FREQ, 0);
+        hardware_PWM(pi, SPEED_PIN, PWM_FREQ, 0); 
         gpio_write(pi, DIR_A_PIN, 0);
         gpio_write(pi, DIR_B_PIN, 0);
         gpio_write(pi, MASTER_ON_PIN, 0);
@@ -75,94 +80,134 @@ void stop_all_activity() {
     speed_percent = 0;
     revolution_count = 0;
     rpm = 0;
+    rpm_smooth = 0;
     motor_running = 0;
     desired_rpm = 0;
     pid_integral = 0;
     pid_last_error = 0;
+    p_state = STATE_NORMAL;
 }
 
 void int_handler(int sig) {
     keep_running = 0;
-    printf("Termination signal received, shutting down...\n");
+    printf("Termination signal received...\n");
+}
+
+int clamp_duty(int d) {
+    if (d > 1000000) return 1000000;
+    if (d < 0) return 0;
+    return d;
 }
 
 void update_pid_controller() {
-    if (current_mode != AUTO_MODE || !motor_running) {
-        return;
+    if (current_mode != AUTO_MODE || !motor_running) return;
+
+    // --- Anti-Stall Kickstart ---
+    // If target > 0 but we are stopped, jump to 40% to break friction
+    if (desired_rpm > 0 && rpm_smooth < 100 && speed_percent < 40) {
+        speed_percent = 40; 
+        printf("KICKSTART: Boosting power to 40%%\n");
+        hardware_PWM(pi, SPEED_PIN, PWM_FREQ, speed_percent * 10000);
+        return; 
     }
 
-    double error = (double)desired_rpm - (double)rpm;
-    pid_integral += error;
-    if (pid_integral > PID_MAX_INTEGRAL) pid_integral = PID_MAX_INTEGRAL;
-    if (pid_integral < PID_MIN_INTEGRAL) pid_integral = PID_MIN_INTEGRAL;
+    double error = (double)desired_rpm - (double)rpm_smooth;
+    pid_integral = 0; // Disabled I term for stability
+    double output = (PID_KP * error);
 
-    double derivative = error - pid_last_error;
-    double output = (PID_KP * error) + (PID_KI * pid_integral) + (PID_KD * derivative);
+    int change = (int)output;
+    if (change > MAX_CHANGE_PER_LOOP) change = MAX_CHANGE_PER_LOOP;
+    if (change < -MAX_CHANGE_PER_LOOP) change = -MAX_CHANGE_PER_LOOP;
 
-    speed_percent += (int)output;
+    speed_percent += change;
     if (speed_percent > 100) speed_percent = 100;
     if (speed_percent < 0) speed_percent = 0;
 
-    int speed_duty_cycle = speed_percent * 10000;
-    hardware_PWM(pi, SPEED_PIN, PWM_FREQ, speed_duty_cycle);
-
+    hardware_PWM(pi, SPEED_PIN, PWM_FREQ, speed_percent * 10000);
     pid_last_error = error;
-
-    printf("PID: Target=%d, Actual=%d, Err=%.1f, P=%.1f, I=%.1f, D=%.1f, Out=%.1f, NewSpeed=%d%%\n",
-           desired_rpm, rpm, error, (PID_KP * error), (PID_KI * pid_integral), (PID_KD * derivative), output, speed_percent);
+    
+    printf("PID: Tgt=%d Act=%d Err=%.1f Chg=%d Speed=%d%%\n", 
+           desired_rpm, rpm_smooth, error, change, speed_percent);
 }
 
 void process_command(char cmd) {
-    printf("APP->PI: Processing char '%c'\n", cmd);
-
-    int speed_duty_cycle;
+    printf("CMD EXEC: '%c'\n", cmd);
     switch (cmd) {
         case 's':
             gpio_write(pi, MASTER_ON_PIN, 1);
             motor_running = 1;
-            pid_integral = 0;
-            pid_last_error = 0;
+            pid_integral = 0; pid_last_error = 0;
             break;
-        case 'x':
-            stop_all_activity();
-            break;
-        case 'c':
-            gpio_write(pi, DIR_A_PIN, 0); 
-            gpio_write(pi, DIR_B_PIN, 1); 
-            break;
-        case 'v':
-            gpio_write(pi, DIR_A_PIN, 1); 
-            gpio_write(pi, DIR_B_PIN, 0); 
-            break;
+        case 'x': stop_all_activity(); break;
+        case 'c': gpio_write(pi, DIR_A_PIN, 0); gpio_write(pi, DIR_B_PIN, 1); break;
+        case 'v': gpio_write(pi, DIR_A_PIN, 1); gpio_write(pi, DIR_B_PIN, 0); break;
         case 'f':
             if (current_mode == MANUAL_MODE) {
-                speed_percent += 10;
-                if (speed_percent > 100) speed_percent = 100;
-                speed_duty_cycle = speed_percent * 10000;
-                hardware_PWM(pi, SPEED_PIN, PWM_FREQ, speed_duty_cycle);
-            } else {
-                printf("Ignoring 'f' in AUTO_MODE\n");
+                speed_percent += 10; if (speed_percent > 100) speed_percent = 100;
+                hardware_PWM(pi, SPEED_PIN, PWM_FREQ, speed_percent * 10000);
             }
             break;
-        case 'd':
+        case 'd': 
             if (current_mode == MANUAL_MODE) {
-                speed_percent -= 10;
-                if (speed_percent < 0) speed_percent = 0;
-                speed_duty_cycle = speed_percent * 10000;
-                hardware_PWM(pi, SPEED_PIN, PWM_FREQ, speed_duty_cycle);
-            } else {
-                 printf("Ignoring 'd' in AUTO_MODE\n");
+                speed_percent -= 10; if (speed_percent < 0) speed_percent = 0;
+                hardware_PWM(pi, SPEED_PIN, PWM_FREQ, speed_percent * 10000);
             }
             break;
-        case 'a':
+        case 'a': 
             current_mode = AUTO_MODE;
-            printf("Switched to AUTO_MODE\n");
-            pid_integral = 0;
-            pid_last_error = 0;
+            motor_running = 1; 
+            gpio_write(pi, MASTER_ON_PIN, 1); 
+            if (gpio_read(pi, DIR_A_PIN) == 0 && gpio_read(pi, DIR_B_PIN) == 0) {
+                 gpio_write(pi, DIR_A_PIN, 0); gpio_write(pi, DIR_B_PIN, 1);
+            }
+            if (desired_rpm == 0) desired_rpm = 500; 
+            pid_integral = 0; pid_last_error = 0;
+            printf("Switched to AUTO_MODE (Target: %d)\n", desired_rpm);
             break;
         case 'm':
             current_mode = MANUAL_MODE;
             printf("Switched to MANUAL_MODE\n");
+            break;
+        case '+':
+            if (current_mode == AUTO_MODE) desired_rpm += 100;
+            printf("Target: %d\n", desired_rpm);
+            break;
+        case '-':
+            if (current_mode == AUTO_MODE) { desired_rpm -= 100; if(desired_rpm<0) desired_rpm=0; }
+            printf("Target: %d\n", desired_rpm);
+            break;
+    }
+}
+
+void parse_input_byte(char c) {
+    switch (p_state) {
+        case STATE_NORMAL:
+            if (c == 'r') { p_state = STATE_WAIT_COLON; } 
+            else { process_command(c); }
+            break;
+        case STATE_WAIT_COLON:
+            if (c == ':') { p_state = STATE_READ_NUM; num_buf_idx = 0; memset(num_buffer, 0, sizeof(num_buffer)); }
+            else { p_state = STATE_NORMAL; process_command(c); }
+            break;
+        case STATE_READ_NUM:
+            if (isdigit(c)) {
+                if (num_buf_idx < 15) num_buffer[num_buf_idx++] = c;
+            } else {
+                if (num_buf_idx > 0) {
+                    desired_rpm = atoi(num_buffer);
+                    printf("PARSED RPM TARGET: %d\n", desired_rpm);
+                    if (current_mode != AUTO_MODE) {
+                        current_mode = AUTO_MODE;
+                        motor_running = 1;
+                        gpio_write(pi, MASTER_ON_PIN, 1);
+                        if (gpio_read(pi, DIR_A_PIN) == 0 && gpio_read(pi, DIR_B_PIN) == 0) {
+                             gpio_write(pi, DIR_A_PIN, 0); gpio_write(pi, DIR_B_PIN, 1);
+                        }
+                    }
+                }
+                p_state = STATE_NORMAL;
+                if (c != '\n' && c != '\r') process_command(c);
+            }
             break;
     }
 }
@@ -171,168 +216,104 @@ int main() {
     signal(SIGINT, int_handler);
     signal(SIGTERM, int_handler);
 
-    pi = pigpio_start(NULL, NULL);
-    if (pi < 0) {
-        fprintf(stderr, "pigpio initialisation failed!\n");
-        return 1;
-    }
+    pi = pigpio_start(NULL, NULL); 
+    if (pi < 0) return 1;
 
     set_mode(pi, MASTER_ON_PIN, PI_OUTPUT);
     set_mode(pi, DIR_A_PIN, PI_OUTPUT);
     set_mode(pi, DIR_B_PIN, PI_OUTPUT);
-    set_mode(pi, SPEED_PIN, PI_OUTPUT);
+    set_mode(pi, SPEED_PIN, PI_OUTPUT); 
+    
     set_mode(pi, SENSOR_PIN, PI_INPUT);
-    set_pull_up_down(pi, SENSOR_PIN, PI_PUD_DOWN);
+    set_pull_up_down(pi, SENSOR_PIN, PI_PUD_UP);
+    
+    // --- Aggressive Glitch Filter (2.5ms) ---
+    set_glitch_filter(pi, SENSOR_PIN, GLITCH_FILTER_US); 
+    
     stop_all_activity();
-
     callback(pi, SENSOR_PIN, RISING_EDGE, rpm_callback);
 
     struct sockaddr_rc loc_addr = { 0 }, rem_addr = { 0 };
     char buf[1024] = { 0 };
-    char rpm_str[32];
+    char data_str[64];
     int server_sock, client_sock;
     socklen_t opt = sizeof(rem_addr);
 
     server_sock = socket(AF_BLUETOOTH, SOCK_STREAM, BTPROTO_RFCOMM);
-    if (server_sock < 0) {
-        perror("Failed to create socket");
-        pigpio_stop(pi);
-        return 1;
-    }
-
     loc_addr.rc_family = AF_BLUETOOTH;
     loc_addr.rc_bdaddr = *BDADDR_ANY;
-    loc_addr.rc_channel = (uint8_t) RFCOMM_CHANNEL;
-
-    if (bind(server_sock, (struct sockaddr *)&loc_addr, sizeof(loc_addr)) < 0) {
-        perror("bind() failed");
-        close(server_sock);
-        pigpio_stop(pi);
-        return 1;
-    }
-
-    if (listen(server_sock, 1) < 0) {
-        perror("listen() failed");
-        close(server_sock);
-        pigpio_stop(pi);
-        return 1;
-    }
+    loc_addr.rc_channel = (uint8_t) RFCOMM_CHANNEL; 
+    bind(server_sock, (struct sockaddr *)&loc_addr, sizeof(loc_addr));
+    listen(server_sock, 1);
     fcntl(server_sock, F_SETFL, O_NONBLOCK);
-
-    printf("Bluetooth server started. Waiting for connection on channel %d...\n", RFCOMM_CHANNEL);
+    printf("Server ready on Channel %d\n", RFCOMM_CHANNEL);
 
     while (keep_running) {
         client_sock = accept(server_sock, (struct sockaddr *)&rem_addr, &opt);
         if (client_sock < 0) {
-            if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                usleep(100000); // Sleep 100ms
-                continue;
-            }
-            if (keep_running) perror("Accept failed");
-            continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) { usleep(100000); continue; }
+            if (keep_running) perror("Accept failed"); continue;
         }
 
         ba2str(&rem_addr.rc_bdaddr, buf);
-        fprintf(stdout, "Accepted connection from %s\n", buf);
+        printf("Connected: %s\n", buf);
         fcntl(client_sock, F_SETFL, O_NONBLOCK);
         
         current_mode = MANUAL_MODE;
         stop_all_activity();
 
-        uint32_t last_rpm_calc_tick = get_current_tick(pi);
-        uint32_t last_rpm_send_tick = get_current_tick(pi);
+        uint32_t last_loop_tick = get_current_tick(pi);
+        uint32_t last_send_tick = get_current_tick(pi);
 
         while (keep_running) {
             uint32_t current_tick = get_current_tick(pi);
 
-            if ((current_tick - last_rpm_calc_tick) >= 1000000) {
+            if ((current_tick - last_loop_tick) >= LOOP_PERIOD) {
+                double revs = (double)revolution_count / 3.0;
+                double seconds = (double)LOOP_PERIOD / 1000000.0;
+                int raw_rpm = (int)((revs / seconds) * 60.0);
                 
-                // --- FIX 1: INTEGER DIVISION ---
-                // The old code: rpm = (revolution_count / 3) * 60;
-                // If revolution_count was 1 or 2, (1 / 3) = 0, so RPM was 0.
-                // This forces floating-point math, so (1.0 / 3.0) * 60.0 = 20.0
-                rpm = (int)(((double)revolution_count / 3.0) * 60.0);
-                // --- END OF FIX 1 ---
+                // --- PHYSICS CHECK: Impossible Acceleration ---
+                // If RPM jumps > 3x the average, and the average isn't near 0, ignore it.
+                if (rpm_smooth > 200 && raw_rpm > (rpm_smooth * 3)) {
+                     printf("NOISE REJECTED: Raw=%d (Avg=%d)\n", raw_rpm, rpm_smooth);
+                     // Use previous smoothed value (hold steady)
+                } else {
+                     // Strong Smoothing (0.8)
+                     rpm_smooth = (int)((RPM_SMOOTHING * rpm_smooth) + ((1.0 - RPM_SMOOTHING) * raw_rpm));
+                }
 
                 revolution_count = 0;
-                last_rpm_calc_tick = current_tick;
-                
+                last_loop_tick = current_tick;
                 update_pid_controller();
             }
 
-            // --- FIX 2: ROBUST SEND LOGIC ---
-            // Only update the 'last_rpm_send_tick' timer *after* a successful
-            // write. This prevents the code from just skipping a send if
-            // the buffer was full. It will now keep trying on subsequent
-            // loops until it succeeds.
-            if ((current_tick - last_rpm_send_tick) >= 50000) {
-                snprintf(rpm_str, sizeof(rpm_str), "RPM:%d\n", rpm);
-                printf("PI->APP: %s", rpm_str);
-
-                int write_ret = write(client_sock, rpm_str, strlen(rpm_str));
-                
+            if ((current_tick - last_send_tick) >= 500000) { 
+                // Send "RPM:" format
+                snprintf(data_str, sizeof(data_str), "RPM:%d\n", rpm_smooth);
+                int write_ret = write(client_sock, data_str, strlen(data_str));
                 if (write_ret < 0) {
-                    if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                        // Buffer full, DON'T update tick.
-                        // We will try again on the next main loop.
-                    } else {
-                        // Real error
-                        fprintf(stdout, "Client %s disconnected (write error).\n", buf);
-                        close(client_sock); 
-                        break; 
-                    }
-                } else {
-                    // Write was successful (or partially successful)
-                    // Update the timer
-                    last_rpm_send_tick = current_tick;
+                     if (errno != EAGAIN && errno != EWOULDBLOCK) {
+                        printf("Client disconnected.\n");
+                        close(client_sock); break; 
+                     }
                 }
+                last_send_tick = current_tick;
             }
-            // --- END OF FIX 2 ---
 
-            
             int bytes_read = read(client_sock, buf, sizeof(buf) - 1);
             if (bytes_read > 0) {
-                buf[bytes_read] = '\0'; 
-                
-                char* p = buf; 
-                
-                while (*p != '\0' && (p - buf) < bytes_read) {
-                    
-                    if (*p == 'r' && *(p+1) == ':') {
-                        p += 2; 
-                        char* start = p; 
-                        
-                        while (isdigit(*p) && (p - buf) < bytes_read) {
-                            p++;
-                        }
-                        
-                        char num_buf[16];
-                        int len = p - start;
-                        if (len > 0 && len < 15) {
-                            strncpy(num_buf, start, len);
-                            num_buf[len] = '\0';
-                            desired_rpm = atoi(num_buf);
-                            printf("Parsed command: Set Desired RPM = %d\n", desired_rpm);
-                        }
-                    } else {
-                        process_command(*p);
-                        p++;
-                    }
+                for (int i = 0; i < bytes_read; i++) {
+                    parse_input_byte(buf[i]);
                 }
-            } 
-            else if (bytes_read == 0) {
-                fprintf(stdout, "Client %s disconnected (read 0).\n", buf);
-                close(client_sock);
-                break;
+            } else if (bytes_read == 0) {
+                printf("Client disconnected (EOF).\n");
+                close(client_sock); break;
             }
-            usleep(20000);
+            usleep(10000); 
         }
-
-        stop_all_activity();
-        printf("Waiting for new connection...\n");
+        stop_all_activity(); 
     }
-
-    printf("Shutting down server...\n");
     stop_all_activity();
     close(server_sock);
     pigpio_stop(pi);
