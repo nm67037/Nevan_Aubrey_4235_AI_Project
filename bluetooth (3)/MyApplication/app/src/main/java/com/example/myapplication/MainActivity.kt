@@ -16,11 +16,12 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
-import android.view.View // ⭐️ ADDED IMPORT
+import android.util.Log // ⭐️ ADDED IMPORT
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
-import android.widget.EditText // ⭐️ ADDED IMPORT
-import android.widget.LinearLayout // ⭐️ ADDED IMPORT
+import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
@@ -39,6 +40,9 @@ import java.util.UUID
 
 // Define a message type for our Handler
 private const val MESSAGE_READ: Int = 0
+
+// --- NEW: Data class for our timeseries data ---
+data class RpmDataPoint(val timestampMs: Long, val rpm: Int)
 
 @SuppressLint("MissingPermission") // We are checking permissions, so this is safe
 class MainActivity : AppCompatActivity() {
@@ -61,6 +65,11 @@ class MainActivity : AppCompatActivity() {
     private var isMotorStopped = true // Default to "stopped"
     private var isAutoMode = false // Default to Manual Mode
 
+    // --- NEW: Variables for Data Logging ---
+    private val rpmDataLog = ArrayList<RpmDataPoint>()
+    private var loggingStartTime: Long = 0L // 0 means "not logging"
+
+
     // --- UI Elements ---
     private lateinit var rpmTextView: TextView
     private lateinit var startButton: Button
@@ -70,7 +79,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var toggleDirectionButton: Button
     private lateinit var manualModeButton: Button
     private lateinit var autoModeButton: Button
-    // --- NEW: UI Elements for Auto Mode RPM Input ---
     private lateinit var autoRpmLayout: LinearLayout
     private lateinit var rpmEditText: EditText
     private lateinit var sendRpmButton: Button
@@ -84,6 +92,24 @@ class MainActivity : AppCompatActivity() {
                     val readMessage = msg.obj as String
                     if (readMessage.startsWith("RPM:")) {
                         rpmTextView.text = readMessage.trim() // Update the TextView
+
+                        // --- NEW: Data logging logic ---
+                        // Check if logging is currently active
+                        if (loggingStartTime > 0L) {
+                            try {
+                                // Parse the RPM value from the string
+                                val rpmValue = readMessage.removePrefix("RPM:").trim().toInt()
+                                // Get the current time
+                                val currentTime = System.currentTimeMillis()
+                                // Calculate the relative time since "Start" was pressed
+                                val relativeTime = currentTime - loggingStartTime
+                                // Add the new data point to our log
+                                rpmDataLog.add(RpmDataPoint(relativeTime, rpmValue))
+                            } catch (e: NumberFormatException) {
+                                // In case the RPM value is not a valid number
+                                Log.e("RPM_LOG", "Failed to parse RPM: $readMessage")
+                            }
+                        }
                     }
                 }
             }
@@ -105,7 +131,6 @@ class MainActivity : AppCompatActivity() {
         toggleDirectionButton = findViewById(R.id.toggleDirectionButton)
         manualModeButton = findViewById(R.id.manualModeButton)
         autoModeButton = findViewById(R.id.autoModeButton)
-        // --- NEW: Find new auto mode views ---
         autoRpmLayout = findViewById(R.id.autoRpmLayout)
         rpmEditText = findViewById(R.id.rpmEditText)
         sendRpmButton = findViewById(R.id.sendRpmButton)
@@ -152,8 +177,6 @@ class MainActivity : AppCompatActivity() {
         sendRpmButton.setOnClickListener {
             val rpmValue = rpmEditText.text.toString()
             if (rpmValue.isNotEmpty()) {
-                // We send the command with a prefix, e.g., "r:1200"
-                // Your C code will need to parse this
                 val command = "r:$rpmValue"
                 sendBluetoothCommand(command)
                 Toast.makeText(this, "Sent RPM: $rpmValue", LENGTH_SHORT).show()
@@ -164,7 +187,13 @@ class MainActivity : AppCompatActivity() {
 
 
         // --- Manual Control Button Click Listeners ---
+
+        // --- UPDATED: Start Button ---
         startButton.setOnClickListener {
+            // --- NEW: Start logging ---
+            rpmDataLog.clear() // Clear any previous log
+            loggingStartTime = System.currentTimeMillis() // Set time=0
+
             // Send a sequence: Power ON, Direction CW, Speed 30%
             sendBluetoothCommand("s") // 's' for Start Master Power
             sendBluetoothCommand("c") // 'c' for Clockwise (default direction)
@@ -198,10 +227,15 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Faster (f) sent", LENGTH_SHORT).show()
         }
 
+        // --- UPDATED: Stop Button ---
         stopButton.setOnClickListener {
             sendBluetoothCommand("x") // 'x' for Full Stop
             isMotorStopped = true // Motor is now stopped
             Toast.makeText(this, "Stop (x) sent", LENGTH_SHORT).show()
+
+            // --- NEW: Stop logging and print data ---
+            loggingStartTime = 0L // Stop logging
+            logDataToConsole() // Print the results
         }
 
         toggleDirectionButton.setOnClickListener {
@@ -256,6 +290,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // --- Permission Handling ---
+    // ... (This whole section is unchanged) ...
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             val allGranted = permissions.values.all { it }
@@ -289,6 +324,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     // --- Bluetooth Actions ---
+    // ... (This whole section is unchanged) ...
     private fun startBluetoothScan() {
         if (bluetoothAdapter?.isEnabled == false) {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
@@ -361,7 +397,29 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // --- NEW: Helper function to print the log ---
+    private fun logDataToConsole() {
+        if (rpmDataLog.isEmpty()) {
+            Log.d("RPM_LOG", "No data logged.")
+            return
+        }
+
+        Log.d("RPM_LOG", "--- RPM Data Log (ms, RPM) ---")
+        // Iterate over the list and print each data point
+        rpmDataLog.forEach { dataPoint ->
+            Log.d("RPM_LOG", "${dataPoint.timestampMs}, ${dataPoint.rpm}")
+        }
+        Log.d("RPM_LOG", "--- End of Log (${rpmDataLog.size} points) ---")
+
+        // Let the user know the data is ready
+        runOnUiThread {
+            Toast.makeText(this, "RPM data logged to Logcat", LENGTH_SHORT).show()
+        }
+    }
+
+
     private fun sendBluetoothCommand(command: String) {
+        // ... (This function is unchanged) ...
         if (outputStream == null) {
             Toast.makeText(this, "Not connected to a device", LENGTH_SHORT).show()
             return
@@ -382,6 +440,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun connectToDevice(device: BluetoothDevice) {
+        // ... (This function is unchanged) ...
         Thread {
             var socket: BluetoothSocket? = null
             try {
@@ -423,7 +482,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun readDataFromSocket() {
-        // We use a BufferedReader to read line by line, since the C server sends a '\n'
+        // ... (This function is unchanged) ...
         val reader = BufferedReader(InputStreamReader(inputStream!!))
 
         while (true) {
