@@ -1,6 +1,6 @@
 /*
  * ======================================================================================
- * PROJECT:       PARMCO (Phone APP RP4 Motor Control) - Capstone Design I
+ * PROJECT:       PARMCO (Phone APP RP4 Motor Control)
  * FILE:          parmco_server.c
  * AUTHOR:        Group 1 (Assisted by AI)
  * DATE:          11/17/2025
