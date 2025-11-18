@@ -20,7 +20,7 @@ The main C program running as a system service.
 * **Control Logic:** Runs a 1-second control loop.
     * **Manual Mode:** Direct duty cycle control via app buttons.
     * **Auto Mode:** Calculates RPM error (`Target - Actual`) and adjusts PWM power using a Proportional controller (`Kp = 0.2`). Includes "Anti-Stall" logic to kickstart the motor if it gets stuck.
-* **Sensor Processing:** Uses `pigpio` interrupts (Rising Edge) with a **100µs glitch filter** to count propeller rotations. Includes a physics-based **Hard Cap (12,000 RPM)** to reject electrical noise spikes.
+* **Sensor Processing:** Uses `pigpio` interrupts (Rising Edge) with a **100µs glitch filter** to count propeller rotations. Includes a physics-based **Hard Cap (2,500 RPM)** to reject electrical noise spikes.
 * **Bluetooth Server:** Listens on **RFCOMM Channel 22**. Uses non-blocking sockets to ensure the control loop never freezes, even if the app disconnects.
 
 ### 2. System Services & Scripts
@@ -43,7 +43,8 @@ The system uses a text-based protocol over RFCOMM.
 * `f` / `d`: **Manual Speed** (Faster / Slower by 10%).
 * `a`: **Switch to Auto Mode** (Enables PID Controller).
 * `m`: **Switch to Manual Mode**.
-* `r:<number>\n`: **Set Target RPM** (e.g., `r:1200\n` sets target to 1200).  
+* `+` / `-`: **Target RPM** (Increase / Decrease target by 100).
+* `r:<number>\n`: **Set Exact Target RPM** (e.g., `r:1200\n` sets target to 1200).  
   *Note: Requires newline `\n` terminator for the C state machine parser.*
 
 ### Pi -> Android (Data)
@@ -56,7 +57,6 @@ The system uses a text-based protocol over RFCOMM.
 This section describes the main client-side code developed for the Android app.
 
 ### `MainActivity.kt` (Kotlin)
-> //Nevan comment: This is the final working main app code from Gemini for CP3.
 
 This Kotlin file contains the core logic for the application. It manages the Bluetooth lifecycle, user interactions, and data processing.
 
@@ -68,7 +68,6 @@ This Kotlin file contains the core logic for the application. It manages the Blu
 * **Receiving Data:** Runs a background thread to listen for incoming RPM data strings (e.g., `"RPM:4500"`) and updates the on-screen text view in real-time via a Handler.
 
 ### `activity_main.xml` (Layout)
-> //Nevan comment: This is the xml file of the cp3 code. The purpose of this code is to set up the buttons and RPM display visuals
 
 This XML file defines the user interface layout. It arranges the buttons ("Scan", "Start", "Stop", "Faster", "Slower", "Toggle Direction") and the RPM display text view in a simple vertical list (`LinearLayout`) for easy interaction. It dynamically shows/hides the "Target RPM" input field depending on whether the user is in Auto or Manual mode.
 
@@ -91,7 +90,7 @@ This XML file defines the user interface layout. It arranges the buttons ("Scan"
 1.  **Power on the Pi.** (No monitor needed).
 2.  **Wait ~30 seconds** for the boot scripts to initialize Bluetooth and clear old bonds.
 3.  **Open the Android App.**
-4.  **Scan & Connect** to `group-1-0` (or your specific hostname).
+4.  **Scan & Connect** to `group-1` (or your specific hostname).
 5.  **Control:**
     * Press **Start** (Motor idles).
     * Press **Auto Mode**.
