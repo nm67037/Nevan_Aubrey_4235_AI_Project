@@ -132,14 +132,14 @@ class MainActivity : AppCompatActivity() {
         manualModeButton.setOnClickListener {
             sendBluetoothCommand("m") // 'm' for Manual
             isAutoMode = false
-            updateManualControls(true) // Enable manual buttons
+            updateManualControls(true) // Enable manual speed buttons
             Toast.makeText(this, "Manual Mode Activated", LENGTH_SHORT).show()
         }
 
         autoModeButton.setOnClickListener {
             sendBluetoothCommand("a") // 'a' for Automatic
             isAutoMode = true
-            updateManualControls(false) // Disable manual buttons
+            updateManualControls(false) // Disable manual speed buttons
             Toast.makeText(this, "Automatic Mode Activated", LENGTH_SHORT).show()
         }
 
@@ -220,7 +220,7 @@ class MainActivity : AppCompatActivity() {
         registerReceiver(discoveryReceiver, filter)
 
         // --- NEW: Set initial button state ---
-        updateManualControls(true) // Start with manual controls enabled
+        updateManualControls(true) // Start with manual speed controls enabled
     }
 
     override fun onDestroy() {
@@ -327,13 +327,17 @@ class MainActivity : AppCompatActivity() {
 
     // --- UPDATED AND NEW FUNCTIONS ---
 
-    // --- NEW: Helper function to enable/disable manual controls ---
+    // --- ⭐️⭐️ THIS IS THE CORRECTED FUNCTION ⭐️⭐️ ---
+    // Helper function to enable/disable manual speed controls
     private fun updateManualControls(isEnabled: Boolean) {
-        startButton.isEnabled = isEnabled
+        // Only the speed buttons are affected by the mode change
         slowerButton.isEnabled = isEnabled
         fasterButton.isEnabled = isEnabled
-        stopButton.isEnabled = isEnabled
-        toggleDirectionButton.isEnabled = isEnabled
+
+        // These buttons are NO LONGER disabled by this function
+        // startButton.isEnabled = isEnabled
+        // stopButton.isEnabled = isEnabled
+        // toggleDirectionButton.isEnabled = isEnabled
     }
 
     private fun sendBluetoothCommand(command: String) {
