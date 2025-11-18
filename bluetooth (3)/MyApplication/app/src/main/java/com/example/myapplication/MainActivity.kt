@@ -55,13 +55,25 @@ class MainActivity : AppCompatActivity() {
     private var readDataThread: Thread? = null
     private var isClockwise = true
 
-    // --- NEW: Add a state variable to track if the motor should be running ---
+    // --- Add a state variable to track if the motor should be running ---
     private var isMotorStopped = true // Default to "stopped"
 
-    // --- NEW: UI Elements ---
-    private lateinit var rpmTextView: TextView
+    // --- NEW: Add a state variable for mode ---
+    private var isAutoMode = false // Default to Manual Mode
 
-    // --- NEW: Handler for UI Updates from background thread ---
+    // --- UI Elements ---
+    private lateinit var rpmTextView: TextView
+    // --- NEW: Make buttons class-level variables to enable/disable them ---
+    private lateinit var startButton: Button
+    private lateinit var slowerButton: Button
+    private lateinit var fasterButton: Button
+    private lateinit var stopButton: Button
+    private lateinit var toggleDirectionButton: Button
+    private lateinit var manualModeButton: Button
+    private lateinit var autoModeButton: Button
+
+
+    // --- Handler for UI Updates from background thread ---
     private val handler = object : Handler(Looper.getMainLooper()) {
         override fun handleMessage(msg: Message) {
             when (msg.what) {
@@ -83,11 +95,16 @@ class MainActivity : AppCompatActivity() {
 
         // Get the UI elements
         val scanButton: Button = findViewById(R.id.scanButton)
-        val startButton: Button = findViewById(R.id.startButton)
-        val slowerButton: Button = findViewById(R.id.slowerButton)
-        val fasterButton: Button = findViewById(R.id.fasterButton)
-        val stopButton: Button = findViewById(R.id.stopButton)
-        val toggleDirectionButton: Button = findViewById(R.id.toggleDirectionButton)
+        // --- UPDATED: Assign to class-level variables ---
+        startButton = findViewById(R.id.startButton)
+        slowerButton = findViewById(R.id.slowerButton)
+        fasterButton = findViewById(R.id.fasterButton)
+        stopButton = findViewById(R.id.stopButton)
+        toggleDirectionButton = findViewById(R.id.toggleDirectionButton)
+        // --- NEW: Find new mode buttons ---
+        manualModeButton = findViewById(R.id.manualModeButton)
+        autoModeButton = findViewById(R.id.autoModeButton)
+
         val devicesListView: ListView = findViewById(R.id.devicesListView)
         rpmTextView = findViewById(R.id.rpmTextView)
 
@@ -111,9 +128,23 @@ class MainActivity : AppCompatActivity() {
             startBluetoothScan()
         }
 
+        // --- NEW: Set Mode Button Click Listeners ---
+        manualModeButton.setOnClickListener {
+            sendBluetoothCommand("m") // 'm' for Manual
+            isAutoMode = false
+            updateManualControls(true) // Enable manual buttons
+            Toast.makeText(this, "Manual Mode Activated", LENGTH_SHORT).show()
+        }
+
+        autoModeButton.setOnClickListener {
+            sendBluetoothCommand("a") // 'a' for Automatic
+            isAutoMode = true
+            updateManualControls(false) // Disable manual buttons
+            Toast.makeText(this, "Automatic Mode Activated", LENGTH_SHORT).show()
+        }
+
         // --- UPDATED Button Click Listeners ---
 
-        // --- EDITED ---
         startButton.setOnClickListener {
             // Send a sequence: Power ON, Direction CW, Speed 30%
             sendBluetoothCommand("s") // 's' for Start Master Power
@@ -122,7 +153,6 @@ class MainActivity : AppCompatActivity() {
             sendBluetoothCommand("f") // 'f' for Faster (20%)
             sendBluetoothCommand("f") // 'f' for Faster (30%)
 
-            // --- NEW: Update the app's state ---
             isMotorStopped = false // Motor is now running
             isClockwise = true     // Reset direction to CW on every start
 
@@ -130,7 +160,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         slowerButton.setOnClickListener {
-            // --- NEW: Check the state first ---
             if (isMotorStopped) {
                 Toast.makeText(this, "Press START to begin", LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -141,7 +170,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         fasterButton.setOnClickListener {
-            // --- NEW: Check the state first ---
             if (isMotorStopped) {
                 Toast.makeText(this, "Press START to begin", LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -151,18 +179,13 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Faster (f) sent", LENGTH_SHORT).show()
         }
 
-        // --- EDITED ---
         stopButton.setOnClickListener {
             sendBluetoothCommand("x") // 'x' for Full Stop
-
-            // --- NEW: Update the app's state ---
             isMotorStopped = true // Motor is now stopped
-
             Toast.makeText(this, "Stop (x) sent", LENGTH_SHORT).show()
         }
 
         toggleDirectionButton.setOnClickListener {
-            // --- NEW: Check the state first ---
             if (isMotorStopped) {
                 Toast.makeText(this, "Press START to begin", LENGTH_SHORT).show()
                 return@setOnClickListener
@@ -195,6 +218,9 @@ class MainActivity : AppCompatActivity() {
         // 6. Register discovery receiver
         val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
         registerReceiver(discoveryReceiver, filter)
+
+        // --- NEW: Set initial button state ---
+        updateManualControls(true) // Start with manual controls enabled
     }
 
     override fun onDestroy() {
@@ -301,6 +327,15 @@ class MainActivity : AppCompatActivity() {
 
     // --- UPDATED AND NEW FUNCTIONS ---
 
+    // --- NEW: Helper function to enable/disable manual controls ---
+    private fun updateManualControls(isEnabled: Boolean) {
+        startButton.isEnabled = isEnabled
+        slowerButton.isEnabled = isEnabled
+        fasterButton.isEnabled = isEnabled
+        stopButton.isEnabled = isEnabled
+        toggleDirectionButton.isEnabled = isEnabled
+    }
+
     private fun sendBluetoothCommand(command: String) {
         if (outputStream == null) {
             Toast.makeText(this, "Not connected to a device", LENGTH_SHORT).show()
@@ -342,8 +377,10 @@ class MainActivity : AppCompatActivity() {
 
                 runOnUiThread {
                     Toast.makeText(this, "Successfully connected to ${device.name}", LENGTH_LONG).show()
-                    // --- NEW: Set default state on connection ---
+                    // --- UPDATED: Set default state on connection ---
                     isMotorStopped = true
+                    isAutoMode = false
+                    updateManualControls(true) // Default to manual mode
                 }
 
             } catch (e: Exception) { // Catch general Exception for reflection

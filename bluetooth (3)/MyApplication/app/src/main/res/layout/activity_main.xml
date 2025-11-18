@@ -14,7 +14,30 @@
         android:layout_height="wrap_content"
         android:text="Scan for Devices" />
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp">
 
+        <Button
+            android:id="@+id/manualModeButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Manual Mode"
+            android:layout_marginEnd="4dp"/>
+
+        <Button
+            android:id="@+id/autoModeButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Automatic Mode"
+            android:layout_marginStart="4dp"/>
+    </LinearLayout>
     <Button
         android:id="@+id/startButton"
         android:layout_width="match_parent"
@@ -53,7 +76,6 @@
         android:layout_weight="1"
         android:layout_marginTop="16dp" />
 
-    <!-- ADD THIS TO YOUR activity_main.xml -->
     <TextView
         android:id="@+id/rpmTextView"
         android:layout_width="match_parent"
