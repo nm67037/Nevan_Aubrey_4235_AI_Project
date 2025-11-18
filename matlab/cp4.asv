@@ -4,9 +4,6 @@ rpm = data.RPM;
 
 sys = tf(6500,[2000,1]);
 [y,t] = step(sys);
-unity = 1;
-
-
 
 figure;
 plot(time,rpm);
