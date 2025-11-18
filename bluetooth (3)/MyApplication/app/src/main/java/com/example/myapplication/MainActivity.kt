@@ -16,8 +16,11 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
+import android.view.View // ⭐️ ADDED IMPORT
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.EditText // ⭐️ ADDED IMPORT
+import android.widget.LinearLayout // ⭐️ ADDED IMPORT
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
@@ -34,7 +37,6 @@ import java.io.InputStreamReader
 import java.io.OutputStream
 import java.util.UUID
 
-// --- NEW ---
 // Define a message type for our Handler
 private const val MESSAGE_READ: Int = 0
 
@@ -55,15 +57,12 @@ class MainActivity : AppCompatActivity() {
     private var readDataThread: Thread? = null
     private var isClockwise = true
 
-    // --- Add a state variable to track if the motor should be running ---
+    // --- State Variables ---
     private var isMotorStopped = true // Default to "stopped"
-
-    // --- NEW: Add a state variable for mode ---
     private var isAutoMode = false // Default to Manual Mode
 
     // --- UI Elements ---
     private lateinit var rpmTextView: TextView
-    // --- NEW: Make buttons class-level variables to enable/disable them ---
     private lateinit var startButton: Button
     private lateinit var slowerButton: Button
     private lateinit var fasterButton: Button
@@ -71,6 +70,10 @@ class MainActivity : AppCompatActivity() {
     private lateinit var toggleDirectionButton: Button
     private lateinit var manualModeButton: Button
     private lateinit var autoModeButton: Button
+    // --- NEW: UI Elements for Auto Mode RPM Input ---
+    private lateinit var autoRpmLayout: LinearLayout
+    private lateinit var rpmEditText: EditText
+    private lateinit var sendRpmButton: Button
 
 
     // --- Handler for UI Updates from background thread ---
@@ -95,15 +98,17 @@ class MainActivity : AppCompatActivity() {
 
         // Get the UI elements
         val scanButton: Button = findViewById(R.id.scanButton)
-        // --- UPDATED: Assign to class-level variables ---
         startButton = findViewById(R.id.startButton)
         slowerButton = findViewById(R.id.slowerButton)
         fasterButton = findViewById(R.id.fasterButton)
         stopButton = findViewById(R.id.stopButton)
         toggleDirectionButton = findViewById(R.id.toggleDirectionButton)
-        // --- NEW: Find new mode buttons ---
         manualModeButton = findViewById(R.id.manualModeButton)
         autoModeButton = findViewById(R.id.autoModeButton)
+        // --- NEW: Find new auto mode views ---
+        autoRpmLayout = findViewById(R.id.autoRpmLayout)
+        rpmEditText = findViewById(R.id.rpmEditText)
+        sendRpmButton = findViewById(R.id.sendRpmButton)
 
         val devicesListView: ListView = findViewById(R.id.devicesListView)
         rpmTextView = findViewById(R.id.rpmTextView)
@@ -128,23 +133,37 @@ class MainActivity : AppCompatActivity() {
             startBluetoothScan()
         }
 
-        // --- NEW: Set Mode Button Click Listeners ---
+        // --- UPDATED: Mode Button Click Listeners ---
         manualModeButton.setOnClickListener {
             sendBluetoothCommand("m") // 'm' for Manual
             isAutoMode = false
-            updateManualControls(true) // Enable manual speed buttons
+            updateUIForMode(isManualMode = true)
             Toast.makeText(this, "Manual Mode Activated", LENGTH_SHORT).show()
         }
 
         autoModeButton.setOnClickListener {
             sendBluetoothCommand("a") // 'a' for Automatic
             isAutoMode = true
-            updateManualControls(false) // Disable manual speed buttons
+            updateUIForMode(isManualMode = false)
             Toast.makeText(this, "Automatic Mode Activated", LENGTH_SHORT).show()
         }
 
-        // --- UPDATED Button Click Listeners ---
+        // --- NEW: Click Listener for Send RPM Button ---
+        sendRpmButton.setOnClickListener {
+            val rpmValue = rpmEditText.text.toString()
+            if (rpmValue.isNotEmpty()) {
+                // We send the command with a prefix, e.g., "r:1200"
+                // Your C code will need to parse this
+                val command = "r:$rpmValue"
+                sendBluetoothCommand(command)
+                Toast.makeText(this, "Sent RPM: $rpmValue", LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Please enter an RPM value", LENGTH_SHORT).show()
+            }
+        }
 
+
+        // --- Manual Control Button Click Listeners ---
         startButton.setOnClickListener {
             // Send a sequence: Power ON, Direction CW, Speed 30%
             sendBluetoothCommand("s") // 's' for Start Master Power
@@ -219,8 +238,8 @@ class MainActivity : AppCompatActivity() {
         val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
         registerReceiver(discoveryReceiver, filter)
 
-        // --- NEW: Set initial button state ---
-        updateManualControls(true) // Start with manual speed controls enabled
+        // --- UPDATED: Set initial button state ---
+        updateUIForMode(isManualMode = true) // Start with manual UI
     }
 
     override fun onDestroy() {
@@ -327,17 +346,19 @@ class MainActivity : AppCompatActivity() {
 
     // --- UPDATED AND NEW FUNCTIONS ---
 
-    // --- ⭐️⭐️ THIS IS THE CORRECTED FUNCTION ⭐️⭐️ ---
-    // Helper function to enable/disable manual speed controls
-    private fun updateManualControls(isEnabled: Boolean) {
-        // Only the speed buttons are affected by the mode change
-        slowerButton.isEnabled = isEnabled
-        fasterButton.isEnabled = isEnabled
-
-        // These buttons are NO LONGER disabled by this function
-        // startButton.isEnabled = isEnabled
-        // stopButton.isEnabled = isEnabled
-        // toggleDirectionButton.isEnabled = isEnabled
+    // --- This function now controls the UI for both modes ---
+    private fun updateUIForMode(isManualMode: Boolean) {
+        if (isManualMode) {
+            // Manual Mode: Enable speed buttons, HIDE auto layout
+            slowerButton.isEnabled = true
+            fasterButton.isEnabled = true
+            autoRpmLayout.visibility = View.GONE
+        } else {
+            // Auto Mode: Disable speed buttons, SHOW auto layout
+            slowerButton.isEnabled = false
+            fasterButton.isEnabled = false
+            autoRpmLayout.visibility = View.VISIBLE
+        }
     }
 
     private fun sendBluetoothCommand(command: String) {
@@ -384,7 +405,7 @@ class MainActivity : AppCompatActivity() {
                     // --- UPDATED: Set default state on connection ---
                     isMotorStopped = true
                     isAutoMode = false
-                    updateManualControls(true) // Default to manual mode
+                    updateUIForMode(isManualMode = true) // Default to manual mode
                 }
 
             } catch (e: Exception) { // Catch general Exception for reflection
