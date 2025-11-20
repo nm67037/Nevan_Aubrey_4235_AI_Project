@@ -1,4 +1,4 @@
-<!-- Nevan comment: This is the xml file of the cp3 code. The purpose of this code is to set up the buttons and RPM display visuals -->
+<!-- cp4 xml code-->
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
@@ -15,7 +15,62 @@
         android:layout_height="wrap_content"
         android:text="Scan for Devices" />
 
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:weightSum="2"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp">
 
+        <Button
+            android:id="@+id/manualModeButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Manual Mode"
+            android:layout_marginEnd="4dp"/>
+
+        <Button
+            android:id="@+id/autoModeButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Automatic Mode"
+            android:layout_marginStart="4dp"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/autoRpmLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone"
+        tools:visibility="visible"> <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Desired RPM:"
+        android:textSize="16sp"
+        android:textColor="#FFFFFF"
+        android:layout_gravity="center_vertical"/>
+
+        <EditText
+            android:id="@+id/rpmEditText"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:inputType="number"
+            android:hint="e.g. 1200"
+            android:layout_marginStart="8dp"
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/sendRpmButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Send"/>
+    </LinearLayout>
     <Button
         android:id="@+id/startButton"
         android:layout_width="match_parent"
@@ -54,7 +109,6 @@
         android:layout_weight="1"
         android:layout_marginTop="16dp" />
 
-    <!-- ADD THIS TO YOUR activity_main.xml -->
     <TextView
         android:id="@+id/rpmTextView"
         android:layout_width="match_parent"
